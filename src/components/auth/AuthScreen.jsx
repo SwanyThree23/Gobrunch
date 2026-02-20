@@ -2,6 +2,7 @@ import { useState } from 'react';
 import T from '@/constants/colors.js';
 import { PAYMENTS_LIST } from '@/constants/data.js';
 import { Spinner } from '@/components/primitives/index.jsx';
+import { signIn, signUp, isSupabaseConfigured } from '@/lib/supabase.js';
 
 function LandingPage({ onSignup, onLogin }) {
   return (
@@ -91,13 +92,23 @@ function LandingPage({ onSignup, onLogin }) {
 function LoginForm({ onLogin, onSignup }) {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setError('');
     setLoading(true);
-    setTimeout(() => {
+    if (isSupabaseConfigured) {
+      const { data, error: err } = await signIn(form.email, form.password);
       setLoading(false);
-      onLogin({ name: form.email.split('@')[0] || '@seewhy_creator', type: 'creator' });
-    }, 1200);
+      if (err) { setError(err.message); return; }
+      onLogin({ id: data.user.id, name: data.user.user_metadata?.name || form.email.split('@')[0], email: form.email, type: 'creator' });
+    } else {
+      // Mock auth fallback when Supabase not configured
+      setTimeout(() => {
+        setLoading(false);
+        onLogin({ name: form.email.split('@')[0] || '@seewhy_creator', type: 'creator' });
+      }, 1200);
+    }
   };
 
   return (
@@ -133,6 +144,11 @@ function LoginForm({ onLogin, onSignup }) {
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
             />
           </div>
+          {error && (
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: T.sig, letterSpacing: 1, padding: '6px 10px', background: `${T.sig}10`, borderRadius: 2 }}>
+              {error}
+            </div>
+          )}
           <button className="btn-primary" onClick={handleSubmit} style={{ width: '100%', justifyContent: 'center', fontSize: 15, marginTop: 4 }}>
             {loading ? <Spinner /> : 'SIGN IN'}
           </button>
@@ -152,13 +168,23 @@ function SignupForm({ onLogin }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ name: '', email: '', password: '', type: 'creator' });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
+    setError('');
     setLoading(true);
-    setTimeout(() => {
+    if (isSupabaseConfigured && form.email && form.password) {
+      const { data, error: err } = await signUp(form.email, form.password, { name: form.name, type: form.type });
       setLoading(false);
-      onLogin({ name: form.name || '@seewhy_creator', type: form.type });
-    }, 1400);
+      if (err) { setError(err.message); return; }
+      // user may need to confirm email depending on Supabase project settings
+      onLogin({ id: data.user?.id, name: form.name || form.email.split('@')[0] || '@seewhy_creator', email: form.email, type: form.type });
+    } else {
+      setTimeout(() => {
+        setLoading(false);
+        onLogin({ name: form.name || '@seewhy_creator', type: form.type });
+      }, 1400);
+    }
   };
 
   return (
@@ -270,6 +296,11 @@ function SignupForm({ onLogin }) {
               ))}
             </div>
 
+            {error && (
+              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: T.sig, letterSpacing: 1, padding: '6px 10px', background: `${T.sig}10`, borderRadius: 2 }}>
+                {error}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn-ghost" onClick={() => setStep(2)} style={{ flex: 1 }}>← BACK</button>
               <button className="btn-primary" onClick={handleLaunch} style={{ flex: 2, justifyContent: 'center' }}>

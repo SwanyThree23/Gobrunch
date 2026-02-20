@@ -6,10 +6,12 @@ import AIChat from './AIChat.jsx';
 import LLMLingua from './LLMLingua.jsx';
 import InsForge from './InsForge.jsx';
 import Hostinger from './Hostinger.jsx';
+import MuxRTMP from './MuxRTMP.jsx';
 
 const TOOLS = [
   { id: 'camera', icon: '📷', label: 'Camera Studio', desc: 'Real camera, VU meter, screen share', color: T.sig },
   { id: 'ai', icon: '🤖', label: 'AI Chat', desc: 'OpenRouter · 8 models · streaming', color: T.vb },
+  { id: 'mux', icon: '📡', label: 'Mux RTMP', desc: 'Broadcast via OBS · Streamlabs · any RTMP client', color: '#ff4200' },
   { id: 'lingua', icon: '📦', label: 'LLMLingua', desc: 'Compress prompts, save tokens', color: T.acid },
   { id: 'insforge', icon: '🏗', label: 'InsForge', desc: 'Infrastructure monitor & scaling', color: T.cyan },
   { id: 'hostinger', icon: '🌐', label: 'Hostinger', desc: 'Hosting panel, domains, FTP, SSH', color: T.gold },
@@ -92,7 +94,7 @@ export function ToolsHub({ state, dispatch, onClose }) {
               ⚡ CREATOR TOOLKIT v3.0
             </div>
             <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 12, color: T.muted, fontStyle: 'italic', lineHeight: 1.6 }}>
-              Real WebRTC camera studio · OpenRouter AI with 8 models · Client-side LLMLingua compression · InsForge infrastructure monitoring · Full Hostinger hosting panel.
+              Real WebRTC camera studio · OpenRouter AI with 8 models · Mux RTMP broadcast · Client-side LLMLingua compression · InsForge infrastructure monitoring · Full Hostinger hosting panel.
             </div>
           </div>
         </div>
@@ -103,6 +105,7 @@ export function ToolsHub({ state, dispatch, onClose }) {
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {activeTool === 'camera' && <CameraStudio />}
           {activeTool === 'ai' && <AIChat state={state} dispatch={dispatch} />}
+          {activeTool === 'mux' && <MuxRTMP />}
           {activeTool === 'lingua' && <LLMLingua />}
           {activeTool === 'insforge' && <InsForge state={state} dispatch={dispatch} />}
           {activeTool === 'hostinger' && <Hostinger />}

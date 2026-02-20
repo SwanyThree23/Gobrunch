@@ -115,20 +115,20 @@ export function useCameraStream() {
     setIsScreenSharing(false);
   }, [screenStream]);
 
-  // Toggle mute
+  // Toggle mute — track.enabled=true means audio flows; when muting we set enabled=false
   const toggleMute = useCallback(() => {
     if (!stream) return;
     stream.getAudioTracks().forEach(t => {
-      t.enabled = isMuted;
+      t.enabled = isMuted; // isMuted=true → currently muted → enable (unmute); false → disable (mute)
     });
     setIsMuted(prev => !prev);
   }, [stream, isMuted]);
 
-  // Toggle camera
+  // Toggle camera — isCamOff=true means camera is currently off → set enabled=true to turn on
   const toggleCamera = useCallback(() => {
     if (!stream) return;
     stream.getVideoTracks().forEach(t => {
-      t.enabled = isCamOff;
+      t.enabled = isCamOff; // isCamOff=true → currently off → enable; false → disable
     });
     setIsCamOff(prev => !prev);
   }, [stream, isCamOff]);

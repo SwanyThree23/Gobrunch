@@ -68,7 +68,7 @@ function App() {
   if (!state.auth) {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <AuthScreen dispatch={dispatch} />
+        <AuthScreen onLogin={(user) => dispatch({ type: 'LOGIN', payload: user })} />
       </div>
     );
   }
@@ -79,12 +79,8 @@ function App() {
       <div style={{ maxWidth: 480, margin: '0 auto', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
         <LiveRoom
           stream={activeStream}
-          state={state}
-          dispatch={dispatch}
-          onClose={() => setActiveStream(null)}
+          onBack={() => setActiveStream(null)}
           onToast={showToast}
-          onPayment={() => setShowPayment(true)}
-          onShare={() => setShowShare(true)}
         />
         {toast && <Toast msg={toast} />}
       </div>

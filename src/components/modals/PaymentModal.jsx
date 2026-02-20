@@ -3,6 +3,20 @@ import T from '@/constants/colors.js';
 import { PAYMENTS_LIST } from '@/constants/data.js';
 import { Modal, Spinner } from '@/components/primitives/index.jsx';
 
+// Build real deep-link URLs for each payment platform
+function buildPayLink(platformId, handle, amount) {
+  const h = handle.replace(/^[@$]/, ''); // strip leading @ or $
+  const amt = amount || '';
+  switch (platformId) {
+    case 'paypal':  return `https://paypal.me/${h}${amt ? '/' + amt : ''}`;
+    case 'cashapp': return `https://cash.app/$${h}${amt ? '/' + amt : ''}`;
+    case 'venmo':   return `https://venmo.com/${h}?txn=pay${amt ? '&amount=' + amt : ''}&note=SeeWhy+LIVE+tip`;
+    case 'chime':   return `https://cash.chime.com/${h}`;
+    case 'zelle':   return 'https://enroll.zellepay.com/';
+    default:        return null;
+  }
+}
+
 export function PaymentModal({ open, onClose, host, amount }) {
   const [sel, setSel] = useState(null);
   const [handle, setHandle] = useState('');
@@ -10,6 +24,8 @@ export function PaymentModal({ open, onClose, host, amount }) {
 
   const send = () => {
     if (!sel || !handle) return;
+    const url = buildPayLink(sel.id, handle, amount);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
     setDone(true);
     setTimeout(() => { setDone(false); setSel(null); setHandle(''); onClose(); }, 2500);
   };
@@ -77,8 +93,13 @@ export function PaymentModal({ open, onClose, host, amount }) {
             disabled={!sel || !handle}
             style={{ width: '100%', opacity: (!sel || !handle) ? 0.4 : 1, fontSize: 15 }}
           >
-            💸 SEND VIA {sel ? sel.name.toUpperCase() : 'PAYMENT APP'}
+            💸 OPEN {sel ? sel.name.toUpperCase() : 'PAYMENT APP'} →
           </button>
+          {sel && handle && (
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, color: T.muted, letterSpacing: 1, textAlign: 'center', marginTop: 8 }}>
+              OPENS {sel.name.toUpperCase()} APP / WEBSITE · 100% DIRECT · ZERO PLATFORM FEE
+            </div>
+          )}
         </>
       )}
     </Modal>

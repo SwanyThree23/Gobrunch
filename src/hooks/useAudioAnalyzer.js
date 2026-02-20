@@ -9,13 +9,15 @@ export function useAudioAnalyzer(stream, { bars = 26, fftSize = 256 } = {}) {
   const sourceRef = useRef(null);
   const rafRef = useRef(null);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     if (!stream || !stream.getAudioTracks().length) return;
     if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') return;
 
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
+      // Resume suspended context (browsers auto-suspend until user gesture)
+      if (ctx.state === 'suspended') await ctx.resume();
       const analyzer = ctx.createAnalyser();
       analyzer.fftSize = fftSize;
       analyzer.smoothingTimeConstant = 0.8;

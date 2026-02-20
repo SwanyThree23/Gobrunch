@@ -4,12 +4,14 @@ import { AI_MODELS, AI_PERSONAS } from '@/constants/data.js';
 import { Avatar, Spinner, MonoTag } from '@/components/primitives/index.jsx';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// Falls back to VITE_OPENROUTER_KEY env var if no key stored in state
+const ENV_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
 
 export function AIChat({ state, dispatch }) {
   const { aiChat } = state;
   const [input, setInput] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(aiChat.apiKey || '');
+  const [apiKeyInput, setApiKeyInput] = useState(aiChat.apiKey || ENV_KEY);
   const [customSystem, setCustomSystem] = useState(aiChat.customSystem || '');
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
@@ -26,7 +28,7 @@ export function AIChat({ state, dispatch }) {
 
   const send = async () => {
     if (!input.trim() || aiChat.streaming) return;
-    const key = aiChat.apiKey || apiKeyInput;
+    const key = aiChat.apiKey || apiKeyInput || ENV_KEY;
     if (!key) { setShowKey(true); return; }
 
     const userMsg = input.trim();
