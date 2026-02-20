@@ -39,3 +39,5 @@ next-env.d.ts
 # Misc
 *.pem
 coverage/
+
+/lib/generated/prisma

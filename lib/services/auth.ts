@@ -63,7 +63,7 @@ export async function registerUser(
   password: string
 ): Promise<AuthResponse> {
   // Check for existing user
-  for (const user of users.values()) {
+  for (const user of Array.from(users.values())) {
     if (user.email === email) {
       throw new AuthError('Email already registered');
     }
@@ -103,7 +103,7 @@ export async function registerUser(
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
   let foundUser: (User & { passwordHash: string }) | undefined;
 
-  for (const user of users.values()) {
+  for (const user of Array.from(users.values())) {
     if (user.email === email) {
       foundUser = user;
       break;
