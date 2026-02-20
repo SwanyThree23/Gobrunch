@@ -40,4 +40,7 @@ next-env.d.ts
 *.pem
 coverage/
 
+# Prisma
 /lib/generated/prisma
+*.db
+*.db-journal
