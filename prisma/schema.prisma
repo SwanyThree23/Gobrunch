@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  username         String   @unique
+  displayName      String
+  passwordHash     String
+  avatarUrl        String?
+  bio              String?
+  role             String   @default("viewer") // viewer | host | moderator | admin
+  status           String   @default("offline") // online | away | offline
+  subscription     String   @default("free") // free | pro | enterprise
+  stripeCustomerId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  rooms             Room[]
+  watchPartiesHost  WatchParty[]       @relation("WatchPartyHost")
+  participants      WatchPartyParticipant[]
+  chatMessages      ChatMessage[]
+
+  @@map("users")
+}
+
+model Room {
+  id               String   @id @default(uuid())
+  title            String
+  description      String   @default("")
+  hostId           String
+  host             User     @relation(fields: [hostId], references: [id])
+  status           String   @default("scheduled") // scheduled | live | ended | archived
+  visibility       String   @default("public") // public | private | unlisted
+  thumbnailUrl     String?
+  streamUrl        String?
+  maxViewers       Int      @default(1000)
+  currentViewers   Int      @default(0)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  tags             String   @default("[]") // JSON array stored as string
+  chatEnabled      Boolean  @default(true)
+  recordingEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  watchParties     WatchParty[]
+  chatMessages     ChatMessage[]
+
+  @@index([hostId])
+  @@index([status])
+  @@map("rooms")
+}
+
+model WatchParty {
+  id               String   @id @default(uuid())
+  roomId           String
+  room             Room     @relation(fields: [roomId], references: [id])
+  hostId           String
+  host             User     @relation("WatchPartyHost", fields: [hostId], references: [id])
+  title            String
+  videoUrl         String
+  videoSource      String   // youtube | vimeo | custom | upload
+  status           String   @default("waiting") // waiting | playing | paused | ended
+  currentTime      Float    @default(0)
+  playbackRate     Float    @default(1)
+  maxParticipants  Int      @default(10)
+  inviteCode       String   @unique
+  chatEnabled      Boolean  @default(true)
+  aiAssistantEnabled Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  participants     WatchPartyParticipant[]
+
+  @@index([hostId])
+  @@index([inviteCode])
+  @@map("watch_parties")
+}
+
+model WatchPartyParticipant {
+  id           String     @id @default(uuid())
+  watchPartyId String
+  watchParty   WatchParty @relation(fields: [watchPartyId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  joinedAt     DateTime   @default(now())
+  isReady      Boolean    @default(false)
+
+  @@unique([watchPartyId, userId])
+  @@map("watch_party_participants")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   @default("text") // text | system | ai_response | reaction | pinned
+  content   String
+  replyToId String?
+  isPinned  Boolean  @default(false)
+  reactions String   @default("{}") // JSON object stored as string
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+  @@index([userId])
+  @@map("chat_messages")
+}

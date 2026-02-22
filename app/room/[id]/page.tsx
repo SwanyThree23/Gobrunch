@@ -1,0 +1,192 @@
+'use client';
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Send,
+  Users,
+  Eye,
+  Settings,
+  Share2,
+  Heart,
+  ThumbsUp,
+  Laugh,
+  Flame,
+  Brain,
+  Maximize2,
+  Volume2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
+import { Card } from '@/components/ui/Card';
+import { useRoomStore } from '@/lib/hooks/useRoomStore';
+import { formatViewerCount } from '@/lib/utils';
+
+const reactions = [
+  { emoji: '❤️', icon: Heart },
+  { emoji: '👍', icon: ThumbsUp },
+  { emoji: '😂', icon: Laugh },
+  { emoji: '🔥', icon: Flame },
+];
+
+const demoChatMessages = [
+  { id: '1', user: 'Alice', content: 'This stream is amazing!', time: '2m ago' },
+  { id: '2', user: 'Bob', content: 'Can you explain that part again?', time: '1m ago' },
+  { id: '3', user: 'Charlie', content: 'Love the production quality', time: '45s ago' },
+  { id: '4', user: 'Diana', content: 'First time here, great content!', time: '30s ago' },
+  { id: '5', user: 'Eve', content: 'Will there be a recording?', time: '15s ago' },
+];
+
+export default function RoomPage({ params }: { params: { id: string } }) {
+  const [chatInput, setChatInput] = useState('');
+  const [showAI, setShowAI] = useState(false);
+  const { viewerCount } = useRoomStore();
+
+  const currentViewers = viewerCount || 847;
+
+  return (
+    <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
+      {/* Video Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Video Player */}
+        <div className="relative flex-1 bg-black/50 flex items-center justify-center min-h-[300px]">
+          <div className="absolute inset-0 bg-gradient-to-br from-burgundy/10 to-dark flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-glow-pulse">
+                <Volume2 size={32} className="text-gold" />
+              </div>
+              <h2 className="text-xl font-bold">Tech Talk: Building Real-time Apps</h2>
+              <p className="text-white/40 mt-1">Stream is live</p>
+            </div>
+          </div>
+
+          {/* Overlay controls */}
+          <div className="absolute top-4 left-4 flex items-center gap-3">
+            <Badge variant="live">LIVE</Badge>
+            <Badge variant="default">
+              <Eye size={12} />
+              {formatViewerCount(currentViewers)}
+            </Badge>
+          </div>
+
+          <div className="absolute top-4 right-4 flex gap-2">
+            <button className="p-2 rounded-lg bg-black/40 text-white/70 hover:text-white hover:bg-black/60 transition-colors">
+              <Share2 size={18} />
+            </button>
+            <button className="p-2 rounded-lg bg-black/40 text-white/70 hover:text-white hover:bg-black/60 transition-colors">
+              <Maximize2 size={18} />
+            </button>
+          </div>
+
+          {/* Reactions overlay */}
+          <div className="absolute bottom-4 left-4 flex gap-2">
+            {reactions.map((r) => (
+              <button
+                key={r.emoji}
+                className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-lg transition-all hover:scale-110"
+              >
+                {r.emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stream info bar */}
+        <div className="p-4 border-t border-white/5 bg-dark-600/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar name="StreamHost" size="md" showStatus status="online" />
+              <div>
+                <h3 className="font-semibold text-sm">StreamHost</h3>
+                <p className="text-xs text-white/40">Pro Streamer</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowAI(!showAI)}>
+                <Brain size={16} />
+                AI
+              </Button>
+              <Button variant="ghost" size="sm">
+                <Settings size={16} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Sidebar */}
+      <div className="w-full lg:w-96 border-l border-white/5 flex flex-col bg-dark-600/30 max-h-[50vh] lg:max-h-full">
+        {/* Chat header */}
+        <div className="p-4 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm">Live Chat</h3>
+            <Badge variant="default">
+              <Users size={10} />
+              {formatViewerCount(currentViewers)}
+            </Badge>
+          </div>
+        </div>
+
+        {/* AI Panel */}
+        {showAI && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-white/5"
+          >
+            <Card className="m-3 !p-3 bg-gradient-to-br from-burgundy/10 to-transparent">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain size={14} className="text-gold" />
+                <span className="text-xs font-semibold text-gold">AI Assistant</span>
+              </div>
+              <p className="text-xs text-white/50">
+                Ask me anything about the stream! I can summarize discussions,
+                answer questions, and provide context.
+              </p>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {demoChatMessages.map((msg) => (
+            <div key={msg.id} className="flex items-start gap-2">
+              <Avatar name={msg.user} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-semibold text-gold-300">{msg.user}</span>
+                  <span className="text-xs text-white/30">{msg.time}</span>
+                </div>
+                <p className="text-sm text-white/70 break-words">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Chat input */}
+        <div className="p-3 border-t border-white/5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setChatInput('');
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Send a message..."
+              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-gold/40"
+            />
+            <Button type="submit" variant="primary" size="sm" disabled={!chatInput.trim()}>
+              <Send size={14} />
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
