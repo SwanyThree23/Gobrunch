@@ -1,0 +1,27 @@
+export const T = {
+  obs: '#030209',
+  void: '#06040e',
+  panel: '#0b091a',
+  card: '#0f0d1e',
+  lift: '#141228',
+  border: '#1c1830',
+  borderB: '#2e2850',
+  dim: '#1a1630',
+  v: '#7b2fff',
+  vm: '#9b55ff',
+  vb: '#b87fff',
+  acid: '#c8f000',
+  acidD: '#8aaa00',
+  sig: '#ff2255',
+  sigD: '#aa1133',
+  gold: '#ffb800',
+  goldD: '#bb8800',
+  cyan: '#00ddff',
+  cyanD: '#0099bb',
+  green: '#00e676',
+  text: '#ede8ff',
+  textD: '#9990bb',
+  muted: '#534d70',
+};
+
+export default T;
