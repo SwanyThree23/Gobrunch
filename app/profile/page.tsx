@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { User, Mail, Globe, Shield, CreditCard, Save } from 'lucide-react';
+import { User, Shield, CreditCard, Save, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
@@ -11,18 +12,46 @@ import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/lib/hooks/useAuthStore';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuthStore();
-  const [displayName, setDisplayName] = useState(user?.displayName || 'Demo User');
-  const [bio, setBio] = useState('Streaming enthusiast and tech lover');
+  const router = useRouter();
+  const { user, token, setUser } = useAuthStore();
+  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [bio, setBio] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
-  const demoUser = {
-    displayName: user?.displayName || 'Demo User',
-    username: user?.username || 'demouser',
-    email: user?.email || 'demo@seewhy.live',
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ displayName, bio }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.data);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setError(data.error || 'Failed to save');
+      }
+    } catch {
+      setError('Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const profileUser = {
+    displayName: user?.displayName || 'User',
+    username: user?.username || 'user',
+    email: user?.email || '',
     subscription: user?.subscription || 'free',
-    totalStreams: 24,
-    totalViewers: 15800,
-    totalWatchParties: 12,
   };
 
   return (
@@ -34,14 +63,12 @@ export default function ProfilePage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card>
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <Avatar name={demoUser.displayName} size="lg" />
+              <Avatar name={profileUser.displayName} size="lg" />
               <div className="text-center sm:text-left flex-1">
-                <h2 className="text-xl font-bold">{demoUser.displayName}</h2>
-                <p className="text-white/40 text-sm">@{demoUser.username}</p>
+                <h2 className="text-xl font-bold">{profileUser.displayName}</h2>
+                <p className="text-white/40 text-sm">@{profileUser.username}</p>
                 <div className="flex flex-wrap items-center gap-2 mt-2 justify-center sm:justify-start">
-                  <Badge variant="gold">{demoUser.subscription} plan</Badge>
-                  <span className="text-xs text-white/30">{demoUser.totalStreams} streams</span>
-                  <span className="text-xs text-white/30">{demoUser.totalViewers.toLocaleString()} viewers</span>
+                  <Badge variant="gold">{profileUser.subscription} plan</Badge>
                 </div>
               </div>
               <Button variant="secondary" size="sm">
@@ -81,10 +108,11 @@ export default function ProfilePage() {
                   placeholder="Tell us about yourself..."
                 />
               </div>
-              <Input id="email" label="Email" value={demoUser.email} disabled />
-              <Button variant="primary" size="sm">
-                <Save size={16} />
-                Save Changes
+              <Input id="email" label="Email" value={profileUser.email} disabled />
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <Button variant="primary" size="sm" onClick={handleSave} loading={saving}>
+                {saved ? <CheckCircle size={16} /> : <Save size={16} />}
+                {saved ? 'Saved!' : 'Save Changes'}
               </Button>
             </CardContent>
           </Card>
@@ -107,16 +135,16 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
                 <div>
                   <p className="font-semibold">
-                    {demoUser.subscription === 'free' ? 'Starter' : 'Professional'} Plan
+                    {profileUser.subscription === 'free' ? 'Starter' : 'Professional'} Plan
                   </p>
                   <p className="text-sm text-white/40 mt-0.5">
-                    {demoUser.subscription === 'free'
+                    {profileUser.subscription === 'free'
                       ? 'Upgrade to unlock AI, recordings, and more'
                       : 'Your plan renews on Mar 1, 2026'}
                   </p>
                 </div>
-                <Button variant="gold" size="sm">
-                  {demoUser.subscription === 'free' ? 'Upgrade' : 'Manage'}
+                <Button variant="gold" size="sm" onClick={() => router.push('/pricing')}>
+                  {profileUser.subscription === 'free' ? 'Upgrade' : 'Manage'}
                 </Button>
               </div>
             </CardContent>

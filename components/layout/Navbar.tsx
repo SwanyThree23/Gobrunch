@@ -31,6 +31,15 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
 
+  function handleLogout() {
+    // Clear cookie + localStorage + store
+    document.cookie = 'auth_token=; path=/; max-age=0';
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    logout();
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-40 bg-dark/80 backdrop-blur-lg border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -75,7 +84,7 @@ export function Navbar() {
                   <Avatar name={user.displayName} size="sm" showStatus status={user.status} />
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="text-white/50 hover:text-white transition-colors"
                   title="Logout"
                 >

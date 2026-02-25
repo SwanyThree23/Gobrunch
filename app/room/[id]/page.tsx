@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Send,
@@ -20,8 +20,12 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRoomStore } from '@/lib/hooks/useRoomStore';
-import { formatViewerCount } from '@/lib/utils';
+import { useAuthStore } from '@/lib/hooks/useAuthStore';
+import { useSocket } from '@/lib/hooks/useSocket';
+import { formatViewerCount, formatRelativeTime } from '@/lib/utils';
+import type { Room } from '@/types';
 
 const reactions = [
   { emoji: '❤️', icon: Heart },
@@ -30,20 +34,56 @@ const reactions = [
   { emoji: '🔥', icon: Flame },
 ];
 
-const demoChatMessages = [
-  { id: '1', user: 'Alice', content: 'This stream is amazing!', time: '2m ago' },
-  { id: '2', user: 'Bob', content: 'Can you explain that part again?', time: '1m ago' },
-  { id: '3', user: 'Charlie', content: 'Love the production quality', time: '45s ago' },
-  { id: '4', user: 'Diana', content: 'First time here, great content!', time: '30s ago' },
-  { id: '5', user: 'Eve', content: 'Will there be a recording?', time: '15s ago' },
-];
-
 export default function RoomPage({ params }: { params: { id: string } }) {
   const [chatInput, setChatInput] = useState('');
   const [showAI, setShowAI] = useState(false);
-  const { viewerCount } = useRoomStore();
+  const [room, setRoom] = useState<Room | null>(null);
+  const [loading, setLoading] = useState(true);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const currentViewers = viewerCount || 847;
+  const { token, user } = useAuthStore();
+  const { viewerCount, chatMessages } = useRoomStore();
+  const { sendMessage } = useSocket({ roomId: params.id, token: token || undefined });
+
+  const fetchRoom = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/rooms/${params.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.success) setRoom(data.data);
+    } catch {
+      // room not found
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id, token]);
+
+  useEffect(() => {
+    fetchRoom();
+  }, [fetchRoom]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    sendMessage(chatInput.trim());
+    setChatInput('');
+  }
+
+  const currentViewers = viewerCount || room?.currentViewers || 0;
+  const roomTitle = room?.title || 'Loading...';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
@@ -56,14 +96,16 @@ export default function RoomPage({ params }: { params: { id: string } }) {
               <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-glow-pulse">
                 <Volume2 size={32} className="text-gold" />
               </div>
-              <h2 className="text-xl font-bold">Tech Talk: Building Real-time Apps</h2>
-              <p className="text-white/40 mt-1">Stream is live</p>
+              <h2 className="text-xl font-bold">{roomTitle}</h2>
+              <p className="text-white/40 mt-1">
+                {room?.status === 'live' ? 'Stream is live' : room?.status || 'Loading'}
+              </p>
             </div>
           </div>
 
           {/* Overlay controls */}
           <div className="absolute top-4 left-4 flex items-center gap-3">
-            <Badge variant="live">LIVE</Badge>
+            {room?.status === 'live' && <Badge variant="live">LIVE</Badge>}
             <Badge variant="default">
               <Eye size={12} />
               {formatViewerCount(currentViewers)}
@@ -96,10 +138,12 @@ export default function RoomPage({ params }: { params: { id: string } }) {
         <div className="p-4 border-t border-white/5 bg-dark-600/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar name="StreamHost" size="md" showStatus status="online" />
+              <Avatar name={room?.host?.displayName || 'Host'} size="md" showStatus status="online" />
               <div>
-                <h3 className="font-semibold text-sm">StreamHost</h3>
-                <p className="text-xs text-white/40">Pro Streamer</p>
+                <h3 className="font-semibold text-sm">{room?.host?.displayName || 'Host'}</h3>
+                <p className="text-xs text-white/40">
+                  {room?.description || 'Stream host'}
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -151,37 +195,43 @@ export default function RoomPage({ params }: { params: { id: string } }) {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {demoChatMessages.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-2">
-              <Avatar name={msg.user} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-gold-300">{msg.user}</span>
-                  <span className="text-xs text-white/30">{msg.time}</span>
+          {chatMessages.length === 0 ? (
+            <p className="text-center text-white/20 text-sm py-8">
+              No messages yet. Say hello!
+            </p>
+          ) : (
+            chatMessages.map((msg) => (
+              <div key={msg.id} className="flex items-start gap-2">
+                <Avatar name={msg.user?.displayName || msg.userId} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-gold-300">
+                      {msg.user?.displayName || msg.userId.slice(0, 8)}
+                    </span>
+                    <span className="text-xs text-white/30">
+                      {formatRelativeTime(msg.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/70 break-words">{msg.content}</p>
                 </div>
-                <p className="text-sm text-white/70 break-words">{msg.content}</p>
               </div>
-            </div>
-          ))}
+            ))
+          )}
+          <div ref={chatEndRef} />
         </div>
 
         {/* Chat input */}
         <div className="p-3 border-t border-white/5">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setChatInput('');
-            }}
-            className="flex gap-2"
-          >
+          <form onSubmit={handleSendMessage} className="flex gap-2">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Send a message..."
-              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-gold/40"
+              placeholder={user ? 'Send a message...' : 'Login to chat'}
+              disabled={!user}
+              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-gold/40 disabled:opacity-50"
             />
-            <Button type="submit" variant="primary" size="sm" disabled={!chatInput.trim()}>
+            <Button type="submit" variant="primary" size="sm" disabled={!chatInput.trim() || !user}>
               <Send size={14} />
             </Button>
           </form>

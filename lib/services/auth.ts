@@ -141,6 +141,40 @@ export function getUserById(id: string): User | null {
 }
 
 /**
+ * Update a user's profile fields.
+ */
+export function updateUser(
+  id: string,
+  updates: { displayName?: string; bio?: string; avatarUrl?: string; subscription?: string }
+): User | null {
+  const user = users.get(id);
+  if (!user) return null;
+
+  if (updates.displayName !== undefined) user.displayName = updates.displayName;
+  if (updates.bio !== undefined) (user as unknown as Record<string, unknown>).bio = updates.bio;
+  if (updates.avatarUrl !== undefined) user.avatarUrl = updates.avatarUrl;
+  if (updates.subscription !== undefined)
+    user.subscription = updates.subscription as User['subscription'];
+  user.updatedAt = new Date().toISOString();
+
+  const { passwordHash: _, ...safeUser } = user;
+  return safeUser;
+}
+
+/**
+ * Get a user by email (without password hash).
+ */
+export function getUserByEmail(email: string): User | null {
+  for (const user of Array.from(users.values())) {
+    if (user.email === email) {
+      const { passwordHash: _, ...safeUser } = user;
+      return safeUser;
+    }
+  }
+  return null;
+}
+
+/**
  * Extract user from authorization header.
  */
 export function getUserFromHeader(authHeader: string | null): JWTPayload | null {

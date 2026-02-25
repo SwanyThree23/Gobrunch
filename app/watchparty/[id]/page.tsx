@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Play,
@@ -19,39 +19,96 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useWatchPartyStore } from '@/lib/hooks/useWatchPartyStore';
-import { formatDuration } from '@/lib/utils';
-
-const demoParticipants = [
-  { name: 'You (Host)', ready: true, reaction: null },
-  { name: 'Alice', ready: true, reaction: '🎉' },
-  { name: 'Bob', ready: true, reaction: null },
-  { name: 'Charlie', ready: false, reaction: '❤️' },
-  { name: 'Diana', ready: true, reaction: null },
-];
-
-const demoChatMessages = [
-  { id: '1', user: 'Alice', content: 'Ready to watch!', time: '2m ago' },
-  { id: '2', user: 'Bob', content: 'This is going to be great', time: '1m ago' },
-  { id: '3', user: 'You', content: 'Starting in a minute!', time: '30s ago' },
-];
+import { useAuthStore } from '@/lib/hooks/useAuthStore';
+import { useSocket } from '@/lib/hooks/useSocket';
+import { formatDuration, formatRelativeTime } from '@/lib/utils';
+import type { WatchParty } from '@/types';
 
 const reactionEmojis = ['❤️', '🎉', '😂', '🔥', '👏', '😮'];
 
 export default function WatchPartyPage({ params }: { params: { id: string } }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(342); // 5:42
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [party, setParty] = useState<WatchParty | null>(null);
+  const [loading, setLoading] = useState(true);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const inviteCode = 'ABCD1234';
-  const totalDuration = 3600; // 1 hour
+  const { token, user } = useAuthStore();
+  const { party: storeParty, chatMessages, isHost, setParty: setStoreParty, setIsHost } = useWatchPartyStore();
+  const { sendMessage, sendSync, sendReaction } = useSocket({
+    watchPartyId: params.id,
+    token: token || undefined,
+  });
+
+  const fetchParty = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/watchparty/${params.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.success) {
+        setParty(data.data);
+        setStoreParty(data.data);
+        if (user && data.data.hostId === user.id) {
+          setIsHost(true);
+        }
+      }
+    } catch {
+      // party not found
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id, token, user, setStoreParty, setIsHost]);
+
+  useEffect(() => {
+    fetchParty();
+  }, [fetchParty]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const activeParty = storeParty || party;
+  const isPlaying = activeParty?.status === 'playing';
+  const currentTime = activeParty?.currentTime || 0;
+  const totalDuration = 3600;
+  const inviteCode = activeParty?.inviteCode || '--------';
+  const participants = activeParty?.participants || [];
 
   function handleCopyCode() {
     navigator.clipboard.writeText(inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handlePlayPause() {
+    if (!isHost) return;
+    sendSync({
+      type: isPlaying ? 'pause' : 'play',
+      data: { currentTime },
+    });
+  }
+
+  function handleSendChat(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    sendMessage(chatInput.trim());
+    setChatInput('');
+  }
+
+  function handleReaction(emoji: string) {
+    sendReaction(emoji);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   return (
@@ -63,17 +120,17 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-dark flex items-center justify-center">
             <div className="text-center">
               <PartyPopper size={48} className="text-purple-400 mx-auto mb-4 animate-float" />
-              <h2 className="text-xl font-bold">Movie Night: Sci-Fi Marathon</h2>
+              <h2 className="text-xl font-bold">{activeParty?.title || 'Watch Party'}</h2>
               <p className="text-white/40 mt-1">Watch Party - Synced Playback</p>
             </div>
           </div>
 
           {/* Top overlay */}
           <div className="absolute top-4 left-4 flex items-center gap-3">
-            <Badge variant="success">SYNCED</Badge>
+            <Badge variant="success">{isPlaying ? 'PLAYING' : 'SYNCED'}</Badge>
             <Badge variant="default">
               <Users size={12} />
-              {demoParticipants.length} watching
+              {participants.length} watching
             </Badge>
           </div>
 
@@ -88,6 +145,7 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
             {reactionEmojis.map((emoji) => (
               <button
                 key={emoji}
+                onClick={() => handleReaction(emoji)}
                 className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-lg transition-all hover:scale-110"
               >
                 {emoji}
@@ -97,7 +155,6 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
 
           {/* Playback controls */}
           <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-            {/* Progress bar */}
             <div className="w-full h-1 bg-white/20 rounded-full mb-3 cursor-pointer group">
               <div
                 className="h-full bg-gradient-to-r from-purple-500 to-gold rounded-full relative"
@@ -110,8 +167,9 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
+                  onClick={handlePlayPause}
+                  disabled={!isHost}
+                  className="p-2 rounded-lg text-white hover:bg-white/10 transition-colors disabled:opacity-50"
                 >
                   {isPlaying ? <Pause size={20} /> : <Play size={20} />}
                 </button>
@@ -125,6 +183,9 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
                   {formatDuration(currentTime)} / {formatDuration(totalDuration)}
                 </span>
               </div>
+              {!isHost && (
+                <span className="text-xs text-white/30">Host controls playback</span>
+              )}
             </div>
           </div>
         </div>
@@ -156,13 +217,13 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
         <div className="p-4 border-b border-white/5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Users size={14} />
-            Participants ({demoParticipants.length})
+            Participants ({participants.length})
           </h3>
           <div className="flex flex-wrap gap-2">
-            {demoParticipants.map((p) => (
-              <div key={p.name} className="relative">
-                <Avatar name={p.name} size="sm" />
-                {p.ready && (
+            {participants.map((p) => (
+              <div key={p.userId} className="relative">
+                <Avatar name={p.user?.displayName || p.userId.slice(0, 6)} size="sm" />
+                {p.isReady && (
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full ring-2 ring-dark" />
                 )}
                 {p.reaction && (
@@ -201,37 +262,41 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
 
         {/* Chat */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {demoChatMessages.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-2">
-              <Avatar name={msg.user} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-purple-300">{msg.user}</span>
-                  <span className="text-xs text-white/30">{msg.time}</span>
+          {chatMessages.length === 0 ? (
+            <p className="text-center text-white/20 text-sm py-8">No messages yet</p>
+          ) : (
+            chatMessages.map((msg) => (
+              <div key={msg.id} className="flex items-start gap-2">
+                <Avatar name={msg.user?.displayName || msg.userId} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-purple-300">
+                      {msg.user?.displayName || msg.userId.slice(0, 8)}
+                    </span>
+                    <span className="text-xs text-white/30">
+                      {formatRelativeTime(msg.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/70 break-words">{msg.content}</p>
                 </div>
-                <p className="text-sm text-white/70 break-words">{msg.content}</p>
               </div>
-            </div>
-          ))}
+            ))
+          )}
+          <div ref={chatEndRef} />
         </div>
 
         {/* Chat input */}
         <div className="p-3 border-t border-white/5">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setChatInput('');
-            }}
-            className="flex gap-2"
-          >
+          <form onSubmit={handleSendChat} className="flex gap-2">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Chat with the group..."
-              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/40"
+              placeholder={user ? 'Chat with the group...' : 'Login to chat'}
+              disabled={!user}
+              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/40 disabled:opacity-50"
             />
-            <Button type="submit" variant="primary" size="sm" disabled={!chatInput.trim()}>
+            <Button type="submit" variant="primary" size="sm" disabled={!chatInput.trim() || !user}>
               <Send size={14} />
             </Button>
           </form>

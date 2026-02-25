@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { LogIn, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -11,10 +11,12 @@ import { useAuthStore } from '@/lib/hooks/useAuthStore';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setAuth, setLoading, isLoading } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const redirect = searchParams.get('redirect') || '/dashboard';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -36,8 +38,11 @@ export default function LoginPage() {
         return;
       }
 
+      localStorage.setItem('auth_token', data.data.token);
+      localStorage.setItem('refresh_token', data.data.refreshToken);
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=${60 * 60 * 24}; samesite=lax`;
       setAuth(data.data);
-      router.push('/dashboard');
+      router.push(redirect);
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);

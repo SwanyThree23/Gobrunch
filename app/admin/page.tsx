@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { formatViewerCount } from '@/lib/utils';
+import { useAuthStore } from '@/lib/hooks/useAuthStore';
 
 const adminStats = [
   { label: 'Total Users', value: '2,847', icon: Users, change: '+12%', color: 'text-blue-400' },
@@ -30,6 +30,22 @@ const recentActivity = [
 ];
 
 export default function AdminPage() {
+  const { user } = useAuthStore();
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card>
+          <div className="text-center p-8">
+            <Shield size={40} className="text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-white/40 text-sm">You need admin privileges to view this page.</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center justify-between mb-8">

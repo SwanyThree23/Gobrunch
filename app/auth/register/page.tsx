@@ -39,6 +39,9 @@ export default function RegisterPage() {
         return;
       }
 
+      localStorage.setItem('auth_token', data.data.token);
+      localStorage.setItem('refresh_token', data.data.refreshToken);
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=${60 * 60 * 24}; samesite=lax`;
       setAuth(data.data);
       router.push('/dashboard');
     } catch {

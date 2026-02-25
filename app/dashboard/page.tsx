@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -11,72 +11,49 @@ import {
   TrendingUp,
   Radio,
   PartyPopper,
-  BarChart3,
   Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuthStore } from '@/lib/hooks/useAuthStore';
 import { formatViewerCount, formatRelativeTime } from '@/lib/utils';
-
-// Demo data for the dashboard
-const demoStats = {
-  totalRooms: 5,
-  activeRooms: 2,
-  totalViewers: 1234,
-  totalWatchParties: 3,
-  revenueThisMonth: 2890,
-  viewerGrowth: 15.3,
-};
-
-const demoRooms = [
-  {
-    id: '1',
-    title: 'Tech Talk: Building Real-time Apps',
-    status: 'live' as const,
-    currentViewers: 847,
-    tags: ['tech', 'webdev'],
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Music Production Workshop',
-    status: 'live' as const,
-    currentViewers: 234,
-    tags: ['music', 'workshop'],
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Game Night: Community Play',
-    status: 'scheduled' as const,
-    currentViewers: 0,
-    tags: ['gaming', 'community'],
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
-
-const demoWatchParties = [
-  {
-    id: '1',
-    title: 'Movie Night: Sci-Fi Marathon',
-    participants: 8,
-    maxParticipants: 10,
-    status: 'playing' as const,
-  },
-  {
-    id: '2',
-    title: 'Tutorial Watch: React 19 Features',
-    participants: 4,
-    maxParticipants: 15,
-    status: 'waiting' as const,
-  },
-];
+import type { Room, WatchParty } from '@/types';
 
 export default function DashboardPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, token, isAuthenticated } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'rooms' | 'watchparties'>('rooms');
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [watchParties, setWatchParties] = useState<WatchParty[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [roomsRes, wpRes] = await Promise.all([
+        fetch('/api/rooms?hostId=' + (user?.id || ''), { headers }),
+        fetch('/api/watchparty', { headers }),
+      ]);
+      const roomsData = await roomsRes.json();
+      const wpData = await wpRes.json();
+      if (roomsData.success) setRooms(roomsData.data || []);
+      if (wpData.success) setWatchParties(wpData.data || []);
+    } catch {
+      // silently fail — empty dashboard
+    } finally {
+      setLoading(false);
+    }
+  }, [token, user?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const activeRooms = rooms.filter((r) => r.status === 'live').length;
+  const totalViewers = rooms.reduce((sum, r) => sum + r.currentViewers, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -107,10 +84,10 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Active Rooms', value: demoStats.activeRooms, icon: Radio, color: 'text-green-400' },
-          { label: 'Total Viewers', value: formatViewerCount(demoStats.totalViewers), icon: Eye, color: 'text-blue-400' },
-          { label: 'Watch Parties', value: demoStats.totalWatchParties, icon: Users, color: 'text-purple-400' },
-          { label: 'Growth', value: `+${demoStats.viewerGrowth}%`, icon: TrendingUp, color: 'text-gold' },
+          { label: 'Active Rooms', value: activeRooms, icon: Radio, color: 'text-green-400' },
+          { label: 'Total Viewers', value: formatViewerCount(totalViewers), icon: Eye, color: 'text-blue-400' },
+          { label: 'Watch Parties', value: watchParties.length, icon: Users, color: 'text-purple-400' },
+          { label: 'Total Rooms', value: rooms.length, icon: TrendingUp, color: 'text-gold' },
         ].map((stat) => (
           <motion.div
             key={stat.label}
@@ -148,92 +125,112 @@ export default function DashboardPage() {
       </div>
 
       {/* Content */}
-      {activeTab === 'rooms' ? (
+      {loading ? (
+        <LoadingSpinner className="py-12" />
+      ) : activeTab === 'rooms' ? (
         <div className="grid gap-4">
-          {demoRooms.map((room) => (
-            <motion.div
-              key={room.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Link href={`/room/${room.id}`}>
-                <Card hover>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-burgundy/50 to-dark-400 flex items-center justify-center">
-                        <Tv size={20} className="text-gold" />
+          {rooms.length === 0 ? (
+            <Card>
+              <div className="text-center py-8 text-white/40">
+                <Tv size={32} className="mx-auto mb-3 text-white/20" />
+                <p>No rooms yet. Create your first stream!</p>
+              </div>
+            </Card>
+          ) : (
+            rooms.map((room) => (
+              <motion.div
+                key={room.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Link href={`/room/${room.id}`}>
+                  <Card hover>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-burgundy/50 to-dark-400 flex items-center justify-center">
+                          <Tv size={20} className="text-gold" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{room.title}</h3>
+                          <div className="flex items-center gap-3 mt-1">
+                            {room.status === 'live' ? (
+                              <Badge variant="live">LIVE</Badge>
+                            ) : (
+                              <Badge variant="default">{room.status}</Badge>
+                            )}
+                            <span className="text-xs text-white/40 flex items-center gap-1">
+                              <Clock size={12} />
+                              {formatRelativeTime(room.createdAt)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{room.title}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          {room.status === 'live' ? (
-                            <Badge variant="live">LIVE</Badge>
-                          ) : (
-                            <Badge variant="default">{room.status}</Badge>
-                          )}
-                          <span className="text-xs text-white/40 flex items-center gap-1">
-                            <Clock size={12} />
-                            {formatRelativeTime(room.createdAt)}
-                          </span>
+                      <div className="text-right">
+                        {room.status === 'live' && (
+                          <div className="flex items-center gap-1.5 text-sm text-white/60">
+                            <Eye size={14} />
+                            {formatViewerCount(room.currentViewers)}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5 mt-2">
+                          {room.tags.map((tag) => (
+                            <Badge key={tag} variant="default">{tag}</Badge>
+                          ))}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      {room.status === 'live' && (
-                        <div className="flex items-center gap-1.5 text-sm text-white/60">
-                          <Eye size={14} />
-                          {formatViewerCount(room.currentViewers)}
-                        </div>
-                      )}
-                      <div className="flex gap-1.5 mt-2">
-                        {room.tags.map((tag) => (
-                          <Badge key={tag} variant="default">{tag}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
+                  </Card>
+                </Link>
+              </motion.div>
+            ))
+          )}
         </div>
       ) : (
         <div className="grid gap-4">
-          {demoWatchParties.map((party) => (
-            <motion.div
-              key={party.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Link href={`/watchparty/${party.id}`}>
-                <Card hover>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-dark-400 flex items-center justify-center">
-                        <PartyPopper size={20} className="text-purple-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{party.title}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          <Badge
-                            variant={party.status === 'playing' ? 'success' : 'warning'}
-                          >
-                            {party.status}
-                          </Badge>
-                          <span className="text-xs text-white/40">
-                            {party.participants}/{party.maxParticipants} participants
-                          </span>
+          {watchParties.length === 0 ? (
+            <Card>
+              <div className="text-center py-8 text-white/40">
+                <PartyPopper size={32} className="mx-auto mb-3 text-white/20" />
+                <p>No watch parties yet. Start one!</p>
+              </div>
+            </Card>
+          ) : (
+            watchParties.map((party) => (
+              <motion.div
+                key={party.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Link href={`/watchparty/${party.id}`}>
+                  <Card hover>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-dark-400 flex items-center justify-center">
+                          <PartyPopper size={20} className="text-purple-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{party.title}</h3>
+                          <div className="flex items-center gap-3 mt-1">
+                            <Badge
+                              variant={party.status === 'playing' ? 'success' : 'warning'}
+                            >
+                              {party.status}
+                            </Badge>
+                            <span className="text-xs text-white/40">
+                              {party.participants.length}/{party.maxParticipants} participants
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <Button variant="ghost" size="sm">
+                        Join
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      Join
-                    </Button>
-                  </div>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
+                  </Card>
+                </Link>
+              </motion.div>
+            ))
+          )}
         </div>
       )}
     </div>

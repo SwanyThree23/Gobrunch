@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature } from '@/lib/services/stripe';
+import { getUserByEmail, updateUser } from '@/lib/services/auth';
 import type { ApiResponse } from '@/types';
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -21,31 +22,51 @@ export async function POST(request: NextRequest) {
 
     switch (event.type) {
       case 'checkout.session.completed': {
-        // Handle successful checkout - activate subscription
         const session = event.data.object;
         console.log('Checkout completed:', session.id);
-        // TODO: Update user subscription tier in database
+        const customerEmail = session.customer_email || session.customer_details?.email;
+        if (customerEmail) {
+          const user = getUserByEmail(customerEmail);
+          if (user) {
+            const tier = session.metadata?.tier || 'pro';
+            updateUser(user.id, { subscription: tier });
+            console.log(`Upgraded ${customerEmail} to ${tier}`);
+          }
+        }
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         console.log('Subscription updated:', subscription.id);
-        // TODO: Update user subscription status
+        const email = subscription.customer_email;
+        if (email) {
+          const user = getUserByEmail(email);
+          if (user) {
+            const status = subscription.status === 'active' ? user.subscription : 'free';
+            updateUser(user.id, { subscription: status });
+          }
+        }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         console.log('Subscription cancelled:', subscription.id);
-        // TODO: Downgrade user to free tier
+        const cancelEmail = subscription.customer_email;
+        if (cancelEmail) {
+          const user = getUserByEmail(cancelEmail);
+          if (user) {
+            updateUser(user.id, { subscription: 'free' });
+            console.log(`Downgraded ${cancelEmail} to free`);
+          }
+        }
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        console.log('Payment failed:', invoice.id);
-        // TODO: Notify user of payment failure
+        console.log('Payment failed:', invoice.id, 'for', invoice.customer_email);
         break;
       }
 
