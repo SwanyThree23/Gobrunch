@@ -145,7 +145,7 @@ export function getUserById(id: string): User | null {
  */
 export function updateUser(
   id: string,
-  updates: { displayName?: string; bio?: string; avatarUrl?: string; subscription?: string }
+  updates: { displayName?: string; bio?: string; avatarUrl?: string; subscription?: string; stripeCustomerId?: string; role?: string }
 ): User | null {
   const user = users.get(id);
   if (!user) return null;
@@ -155,6 +155,10 @@ export function updateUser(
   if (updates.avatarUrl !== undefined) user.avatarUrl = updates.avatarUrl;
   if (updates.subscription !== undefined)
     user.subscription = updates.subscription as User['subscription'];
+  if (updates.stripeCustomerId !== undefined)
+    user.stripeCustomerId = updates.stripeCustomerId;
+  if (updates.role !== undefined)
+    user.role = updates.role as User['role'];
   user.updatedAt = new Date().toISOString();
 
   const { passwordHash: _, ...safeUser } = user;

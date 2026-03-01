@@ -245,6 +245,118 @@ export const stripeApi = {
     );
     return res.data!;
   },
+
+  async createPortalSession(): Promise<{ url: string }> {
+    const res = await request<{ url: string }>('/api/stripe/portal', { method: 'POST' });
+    return res.data!;
+  },
+
+  async getConnectStatus(): Promise<{
+    status: string;
+    accountId: string | null;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+    detailsSubmitted?: boolean;
+    currentlyDue?: string[];
+  }> {
+    const res = await request<{
+      status: string;
+      accountId: string | null;
+      chargesEnabled?: boolean;
+      payoutsEnabled?: boolean;
+      detailsSubmitted?: boolean;
+      currentlyDue?: string[];
+    }>('/api/stripe/connect');
+    return res.data!;
+  },
+
+  async createConnectAccount(action?: string): Promise<{ accountId?: string; onboardingUrl?: string; url?: string }> {
+    const res = await request<{ accountId?: string; onboardingUrl?: string; url?: string }>(
+      '/api/stripe/connect',
+      {
+        method: 'POST',
+        body: JSON.stringify({ action: action || 'create' }),
+      }
+    );
+    return res.data!;
+  },
+
+  async getCreatorEarnings(): Promise<{
+    totalEarnings: number;
+    availableBalance: number;
+    pendingBalance: number;
+    lastPayoutDate?: string;
+    lastPayoutAmount?: number;
+    transactions: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      fee: number;
+      net: number;
+      currency: string;
+      description: string;
+      status: string;
+      createdAt: string;
+    }>;
+  }> {
+    const res = await request<{
+      totalEarnings: number;
+      availableBalance: number;
+      pendingBalance: number;
+      lastPayoutDate?: string;
+      lastPayoutAmount?: number;
+      transactions: Array<{
+        id: string;
+        type: string;
+        amount: number;
+        fee: number;
+        net: number;
+        currency: string;
+        description: string;
+        status: string;
+        createdAt: string;
+      }>;
+    }>('/api/stripe/connect/earnings');
+    return res.data!;
+  },
+
+  async createTip(params: {
+    creatorId: string;
+    amount: number;
+    message?: string;
+    roomId?: string;
+  }): Promise<{ sessionId: string; url: string }> {
+    const res = await request<{ sessionId: string; url: string }>(
+      '/api/stripe/tip',
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }
+    );
+    return res.data!;
+  },
+
+  async createTicket(params: {
+    roomId: string;
+    amount: number;
+  }): Promise<{ sessionId: string; url: string }> {
+    const res = await request<{ sessionId: string; url: string }>(
+      '/api/stripe/ticket',
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }
+    );
+    return res.data!;
+  },
+};
+
+// ---- Streaming Toolkit API ----
+export const streamingApi = {
+  async getToolkit(roomId: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>(`/api/rooms/${roomId}/streaming`);
+    return res.data!;
+  },
 };
 
 /** Custom error class for API errors */

@@ -15,12 +15,20 @@ import {
   Brain,
   Maximize2,
   Volume2,
+  DollarSign,
+  Video,
+  MessageSquare,
+  Subtitles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { VDONinjaEmbed } from '@/components/streaming/VDONinjaEmbed';
+import { SocialStreamPanel } from '@/components/streaming/SocialStreamPanel';
+import { CaptionOverlay } from '@/components/streaming/CaptionOverlay';
+import { TipModal } from '@/components/payments/TipModal';
 import { useRoomStore } from '@/lib/hooks/useRoomStore';
 import { useAuthStore } from '@/lib/hooks/useAuthStore';
 import { useSocket } from '@/lib/hooks/useSocket';
@@ -28,17 +36,39 @@ import { formatViewerCount, formatRelativeTime } from '@/lib/utils';
 import type { Room } from '@/types';
 
 const reactions = [
-  { emoji: '❤️', icon: Heart },
-  { emoji: '👍', icon: ThumbsUp },
-  { emoji: '😂', icon: Laugh },
-  { emoji: '🔥', icon: Flame },
+  { emoji: '\u2764\uFE0F', icon: Heart },
+  { emoji: '\uD83D\uDC4D', icon: ThumbsUp },
+  { emoji: '\uD83D\uDE02', icon: Laugh },
+  { emoji: '\uD83D\uDD25', icon: Flame },
 ];
+
+interface StreamingToolkit {
+  vdoninja?: {
+    iframeUrl: string;
+    urls: { director: string; publisher: string; viewer: string };
+  };
+  socialStream?: {
+    feedUrl: string;
+    dockUrl: string;
+    session: string;
+  };
+  captions?: {
+    senderUrl: string;
+    displayUrl: string;
+  };
+  isHost?: boolean;
+}
 
 export default function RoomPage({ params }: { params: { id: string } }) {
   const [chatInput, setChatInput] = useState('');
   const [showAI, setShowAI] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
+  const [showSocialStream, setShowSocialStream] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
+  const [toolkit, setToolkit] = useState<StreamingToolkit | null>(null);
   const [loading, setLoading] = useState(true);
+  const [useVDO, setUseVDO] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { token, user } = useAuthStore();
@@ -59,9 +89,25 @@ export default function RoomPage({ params }: { params: { id: string } }) {
     }
   }, [params.id, token]);
 
+  const fetchToolkit = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/rooms/${params.id}/streaming`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToolkit(data.data as StreamingToolkit);
+      }
+    } catch {
+      // streaming toolkit not available
+    }
+  }, [params.id, token]);
+
   useEffect(() => {
     fetchRoom();
-  }, [fetchRoom]);
+    fetchToolkit();
+  }, [fetchRoom, fetchToolkit]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +122,7 @@ export default function RoomPage({ params }: { params: { id: string } }) {
 
   const currentViewers = viewerCount || room?.currentViewers || 0;
   const roomTitle = room?.title || 'Loading...';
+  const isHost = toolkit?.isHost || room?.hostId === user?.id;
 
   if (loading) {
     return (
@@ -91,17 +138,48 @@ export default function RoomPage({ params }: { params: { id: string } }) {
       <div className="flex-1 flex flex-col">
         {/* Video Player */}
         <div className="relative flex-1 bg-black/50 flex items-center justify-center min-h-[300px]">
-          <div className="absolute inset-0 bg-gradient-to-br from-burgundy/10 to-dark flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-glow-pulse">
-                <Volume2 size={32} className="text-gold" />
+          {useVDO && toolkit?.vdoninja ? (
+            /* VDO.Ninja embed */
+            <VDONinjaEmbed
+              iframeUrl={toolkit.vdoninja.iframeUrl}
+              isHost={isHost}
+              className="absolute inset-0"
+            />
+          ) : (
+            /* Default stream placeholder */
+            <div className="absolute inset-0 bg-gradient-to-br from-burgundy/10 to-dark flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-glow-pulse">
+                  <Volume2 size={32} className="text-gold" />
+                </div>
+                <h2 className="text-xl font-bold">{roomTitle}</h2>
+                <p className="text-white/40 mt-1">
+                  {room?.status === 'live' ? 'Stream is live' : room?.status || 'Loading'}
+                </p>
+                {isHost && (
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setUseVDO(true)}
+                  >
+                    <Video size={14} />
+                    Start VDO.Ninja Stream
+                  </Button>
+                )}
               </div>
-              <h2 className="text-xl font-bold">{roomTitle}</h2>
-              <p className="text-white/40 mt-1">
-                {room?.status === 'live' ? 'Stream is live' : room?.status || 'Loading'}
-              </p>
             </div>
-          </div>
+          )}
+
+          {/* Caption overlay */}
+          {showCaptions && toolkit?.captions && (
+            <CaptionOverlay
+              senderUrl={toolkit.captions.senderUrl}
+              displayUrl={toolkit.captions.displayUrl}
+              isHost={isHost}
+              className="absolute bottom-16 left-4 right-4 z-10"
+            />
+          )}
 
           {/* Overlay controls */}
           <div className="absolute top-4 left-4 flex items-center gap-3">
@@ -147,6 +225,33 @@ export default function RoomPage({ params }: { params: { id: string } }) {
               </div>
             </div>
             <div className="flex gap-2">
+              {/* Tip button */}
+              {!isHost && room?.hostId && (
+                <Button variant="gold" size="sm" onClick={() => setShowTipModal(true)}>
+                  <DollarSign size={14} />
+                  Tip
+                </Button>
+              )}
+              {/* Social Stream toggle */}
+              {toolkit?.socialStream && (
+                <Button
+                  variant={showSocialStream ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setShowSocialStream(!showSocialStream)}
+                >
+                  <MessageSquare size={16} />
+                </Button>
+              )}
+              {/* Caption toggle */}
+              {toolkit?.captions && (
+                <Button
+                  variant={showCaptions ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setShowCaptions(!showCaptions)}
+                >
+                  <Subtitles size={16} />
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={() => setShowAI(!showAI)}>
                 <Brain size={16} />
                 AI
@@ -171,6 +276,17 @@ export default function RoomPage({ params }: { params: { id: string } }) {
             </Badge>
           </div>
         </div>
+
+        {/* Social Stream Panel (collapsible) */}
+        {showSocialStream && toolkit?.socialStream && (
+          <div className="border-b border-white/5 max-h-[200px]">
+            <SocialStreamPanel
+              feedUrl={toolkit.socialStream.feedUrl}
+              dockUrl={toolkit.socialStream.dockUrl}
+              session={toolkit.socialStream.session}
+            />
+          </div>
+        )}
 
         {/* AI Panel */}
         {showAI && (
@@ -237,6 +353,17 @@ export default function RoomPage({ params }: { params: { id: string } }) {
           </form>
         </div>
       </div>
+
+      {/* Tip Modal */}
+      {room?.hostId && (
+        <TipModal
+          isOpen={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          creatorId={room.hostId}
+          creatorName={room.host?.displayName || 'Creator'}
+          roomId={room.id}
+        />
+      )}
     </div>
   );
 }

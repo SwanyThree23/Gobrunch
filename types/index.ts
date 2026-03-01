@@ -239,6 +239,105 @@ export interface CheckoutPayload {
   cancelUrl: string;
 }
 
+// ---- Stripe Connect Types ----
+export type ConnectAccountStatus = 'not_created' | 'onboarding' | 'active' | 'restricted' | 'disabled';
+
+export interface ConnectAccount {
+  accountId: string;
+  userId: string;
+  status: ConnectAccountStatus;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  currentlyDue: string[];
+  createdAt: string;
+}
+
+export interface CreatorEarnings {
+  totalEarnings: number;
+  availableBalance: number;
+  pendingBalance: number;
+  lastPayoutDate?: string;
+  lastPayoutAmount?: number;
+  transactions: EarningsTransaction[];
+}
+
+export interface EarningsTransaction {
+  id: string;
+  type: 'tip' | 'subscription' | 'ticket' | 'payout';
+  amount: number;
+  fee: number;
+  net: number;
+  currency: string;
+  description: string;
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: string;
+  fromUser?: string;
+}
+
+export interface DirectChargePayload {
+  amount: number;
+  currency?: string;
+  connectedAccountId: string;
+  applicationFeePercent?: number;
+  description?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface TipPayload {
+  creatorId: string;
+  amount: number;
+  message?: string;
+  roomId?: string;
+}
+
+// ---- VDO.Ninja Types ----
+export interface VDONinjaConfig {
+  roomId: string;
+  pushId?: string;
+  viewId?: string;
+  password?: string;
+  quality?: number;
+  bitrate?: number;
+  audiobitrate?: number;
+  stereo?: boolean;
+  proaudio?: boolean;
+  meshcast?: boolean;
+  label?: string;
+  transparent?: boolean;
+}
+
+export type VDONinjaRole = 'director' | 'publisher' | 'viewer';
+
+export interface VDONinjaRoom {
+  roomName: string;
+  apiKey?: string;
+  role: VDONinjaRole;
+  config: VDONinjaConfig;
+  iframeUrl: string;
+}
+
+export interface VDONinjaCommand {
+  action: string;
+  target?: string;
+  value?: string | number | boolean;
+}
+
+// ---- Social Stream / Caption Types ----
+export interface SocialStreamConfig {
+  enabled: boolean;
+  platforms: ('youtube' | 'twitch' | 'facebook' | 'kick')[];
+  overlayMode: boolean;
+  ttsEnabled: boolean;
+}
+
+export interface CaptionConfig {
+  enabled: boolean;
+  language: string;
+  fontSize: number;
+  position: 'top' | 'bottom';
+}
+
 // ---- WebSocket Event Types ----
 export type WSEventType =
   | 'room:join'

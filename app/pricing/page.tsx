@@ -3,15 +3,66 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PRICING_PLANS } from '@/lib/constants';
+import { useAuthStore } from '@/lib/hooks/useAuthStore';
+import { stripeApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const { isAuthenticated, user } = useAuthStore();
+
+  async function handleSubscribe(plan: typeof PRICING_PLANS[number]) {
+    if (plan.tier === 'free') {
+      window.location.href = '/auth/register';
+      return;
+    }
+
+    if (!isAuthenticated) {
+      window.location.href = `/auth/register?redirect=/pricing&plan=${plan.tier}`;
+      return;
+    }
+
+    // If already on this plan, open billing portal
+    if (user?.subscription === plan.tier) {
+      try {
+        setLoadingPlan(plan.id);
+        const { url } = await stripeApi.createPortalSession();
+        window.location.href = url;
+      } catch {
+        setError('Failed to open billing portal');
+      } finally {
+        setLoadingPlan(null);
+      }
+      return;
+    }
+
+    setLoadingPlan(plan.id);
+    setError('');
+
+    try {
+      const priceId = annual ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly;
+      if (!priceId) {
+        setError('Pricing not configured. Contact support.');
+        setLoadingPlan(null);
+        return;
+      }
+      const { url } = await stripeApi.createCheckout(priceId);
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start checkout');
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -56,11 +107,18 @@ export default function PricingPage() {
         </div>
       </motion.div>
 
+      {error && (
+        <div className="max-w-md mx-auto mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
+          <p className="text-sm text-red-300">{error}</p>
+        </div>
+      )}
+
       {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
         {PRICING_PLANS.map((plan, i) => {
           const price = annual ? plan.priceYearly : plan.priceMonthly;
           const isPopular = plan.tier === 'pro';
+          const isCurrentPlan = user?.subscription === plan.tier;
 
           return (
             <motion.div
@@ -105,20 +163,53 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Link href={plan.tier === 'free' ? '/auth/register' : '/auth/register'}>
-                  <Button
-                    variant={isPopular ? 'gold' : 'secondary'}
-                    className="w-full"
-                  >
-                    {plan.tier === 'free' ? 'Get Started' : 'Start Free Trial'}
-                    <ArrowRight size={16} />
-                  </Button>
-                </Link>
+                <Button
+                  variant={isPopular ? 'gold' : 'secondary'}
+                  className="w-full"
+                  onClick={() => handleSubscribe(plan)}
+                  disabled={loadingPlan === plan.id}
+                >
+                  {loadingPlan === plan.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : isCurrentPlan ? (
+                    'Manage Plan'
+                  ) : plan.tier === 'free' ? (
+                    'Get Started'
+                  ) : (
+                    'Start Free Trial'
+                  )}
+                  {loadingPlan !== plan.id && <ArrowRight size={16} />}
+                </Button>
+
+                {isCurrentPlan && (
+                  <p className="text-xs text-gold text-center mt-2">Your current plan</p>
+                )}
               </Card>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Creator monetization CTA */}
+      <motion.div
+        className="max-w-3xl mx-auto mt-16 text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Card className="bg-gradient-to-br from-gold/5 to-burgundy/5">
+          <h3 className="text-xl font-bold mb-2">Want to earn from your streams?</h3>
+          <p className="text-white/50 mb-4">
+            Set up Stripe Connect to accept tips, sell tickets, and get paid directly.
+          </p>
+          <Link href="/creator/onboarding">
+            <Button variant="gold">
+              Start Earning
+              <ArrowRight size={16} />
+            </Button>
+          </Link>
+        </Card>
+      </motion.div>
     </div>
   );
 }

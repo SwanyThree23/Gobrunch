@@ -14,6 +14,7 @@ import {
   LogIn,
   LogOut,
   User,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +25,7 @@ import { APP_NAME } from '@/lib/constants';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
+  { href: '/creator/onboarding', label: 'Creator', icon: DollarSign },
 ];
 
 export function Navbar() {
