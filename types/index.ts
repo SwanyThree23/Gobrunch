@@ -84,8 +84,80 @@ export interface Room {
   tags: string[];
   chatEnabled: boolean;
   recordingEnabled: boolean;
+  ticketPrice?: number;
+  requiresTicket?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// ---- Stream Key / RTMP Types ----
+export interface StreamConfig {
+  roomId: string;
+  streamKey: string;
+  rtmpIngestUrl: string;
+  rtmpFullUrl: string;
+  whipUrl?: string;
+  playbackUrl: string;
+  status: 'idle' | 'live' | 'reconnecting';
+  createdAt: string;
+  lastActiveAt?: string;
+}
+
+export type ExternalPlatform = 'prism' | 'obs' | 'streamlabs' | 'vmix' | 'xsplit' | 'restream' | 'custom';
+
+export interface MultistreamTarget {
+  id: string;
+  platform: ExternalPlatform;
+  name: string;
+  rtmpUrl: string;
+  streamKey: string;
+  enabled: boolean;
+}
+
+export interface ExternalStreamInput {
+  platform: ExternalPlatform;
+  ingestUrl: string;
+  streamKey: string;
+}
+
+// ---- n8n / Automation Types ----
+export type AutomationTrigger =
+  | 'stream.started'
+  | 'stream.ended'
+  | 'viewer.joined'
+  | 'viewer.left'
+  | 'chat.message'
+  | 'tip.received'
+  | 'ticket.purchased'
+  | 'subscriber.new'
+  | 'room.created'
+  | 'watchparty.started';
+
+export interface AutomationWebhook {
+  id: string;
+  userId: string;
+  name: string;
+  targetUrl: string;
+  secret: string;
+  triggers: AutomationTrigger[];
+  enabled: boolean;
+  lastTriggeredAt?: string;
+  failCount: number;
+  createdAt: string;
+}
+
+export interface AutomationEvent {
+  trigger: AutomationTrigger;
+  timestamp: string;
+  roomId?: string;
+  userId?: string;
+  data: Record<string, unknown>;
+}
+
+export interface N8nWorkflowConfig {
+  webhookUrl: string;
+  triggers: AutomationTrigger[];
+  name: string;
 }
 
 export interface RoomCreatePayload {
@@ -97,6 +169,8 @@ export interface RoomCreatePayload {
   tags?: string[];
   chatEnabled?: boolean;
   recordingEnabled?: boolean;
+  ticketPrice?: number;
+  requiresTicket?: boolean;
 }
 
 export interface RoomUpdatePayload extends Partial<RoomCreatePayload> {

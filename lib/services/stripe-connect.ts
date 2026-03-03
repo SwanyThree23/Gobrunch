@@ -25,6 +25,9 @@ const connectAccounts = new Map<string, {
 // In-memory processed event IDs for idempotency
 const processedEvents = new Set<string>();
 
+// In-memory ticket purchase tracker: userId -> Set<roomId>
+const ticketPurchases = new Map<string, Set<string>>();
+
 // ---- Connect Account Management ----
 
 /**
@@ -448,6 +451,25 @@ export function markEventProcessed(eventId: string): void {
       processedEvents.delete(entries[i]);
     }
   }
+}
+
+// ---- Ticket Access Tracking ----
+
+/**
+ * Record a ticket purchase for a user + room.
+ */
+export function recordTicketPurchase(userId: string, roomId: string): void {
+  if (!ticketPurchases.has(userId)) {
+    ticketPurchases.set(userId, new Set());
+  }
+  ticketPurchases.get(userId)!.add(roomId);
+}
+
+/**
+ * Check if a user has purchased a ticket for a specific room.
+ */
+export function hasTicketForRoom(userId: string, roomId: string): boolean {
+  return ticketPurchases.get(userId)?.has(roomId) ?? false;
 }
 
 // ---- Error Class ----

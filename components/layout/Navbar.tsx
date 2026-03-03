@@ -9,12 +9,12 @@ import {
   X,
   Tv,
   LayoutDashboard,
-  Users,
   CreditCard,
   LogIn,
   LogOut,
   User,
   DollarSign,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +26,7 @@ const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
   { href: '/creator/onboarding', label: 'Creator', icon: DollarSign },
+  { href: '/creator/automations', label: 'Automations', icon: Zap },
 ];
 
 export function Navbar() {

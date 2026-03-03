@@ -359,6 +359,85 @@ export const streamingApi = {
   },
 };
 
+// ---- Stream Config API ----
+export const streamConfigApi = {
+  async get(roomId: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>(`/api/rooms/${roomId}/stream-config`);
+    return res.data!;
+  },
+
+  async regenerateKey(roomId: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>(
+      `/api/rooms/${roomId}/stream-config`,
+      { method: 'POST', body: JSON.stringify({ action: 'regenerate' }) }
+    );
+    return res.data!;
+  },
+
+  async addMultistreamTarget(roomId: string, target: {
+    platform: string;
+    name: string;
+    rtmpUrl: string;
+    streamKey: string;
+  }): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>(
+      `/api/rooms/${roomId}/stream-config`,
+      { method: 'POST', body: JSON.stringify({ action: 'add_target', ...target }) }
+    );
+    return res.data!;
+  },
+
+  async removeMultistreamTarget(roomId: string, targetId: string): Promise<void> {
+    await request(`/api/rooms/${roomId}/stream-config`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'remove_target', targetId }),
+    });
+  },
+
+  async getPlatformConfig(roomId: string, platform: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>(`/api/rooms/${roomId}/stream-config`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'platform_config', platform }),
+    });
+    return res.data!;
+  },
+};
+
+// ---- Automation API ----
+export const automationApi = {
+  async getWebhooks(): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/webhooks');
+    return res.data!;
+  },
+
+  async createWebhook(params: {
+    name: string;
+    targetUrl: string;
+    triggers: string[];
+  }): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create', ...params }),
+    });
+    return res.data!;
+  },
+
+  async deleteWebhook(webhookId: string): Promise<void> {
+    await request('/api/automation/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', webhookId }),
+    });
+  },
+
+  async toggleWebhook(webhookId: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle', webhookId }),
+    });
+    return res.data!;
+  },
+};
+
 /** Custom error class for API errors */
 export class ApiError extends Error {
   constructor(

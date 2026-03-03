@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Radio, ArrowLeft } from 'lucide-react';
+import { Radio, ArrowLeft, Ticket, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +15,8 @@ export default function NewRoomPage() {
   const { token } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [requiresTicket, setRequiresTicket] = useState(false);
+  const [ticketPrice, setTicketPrice] = useState('');
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -29,6 +31,12 @@ export default function NewRoomPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (requiresTicket && (!ticketPrice || parseFloat(ticketPrice) < 1)) {
+      setError('Ticket price must be at least $1.00');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -46,6 +54,8 @@ export default function NewRoomPage() {
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean),
+          requiresTicket,
+          ticketPrice: requiresTicket ? Math.round(parseFloat(ticketPrice) * 100) : undefined,
         }),
       });
 
@@ -56,7 +66,8 @@ export default function NewRoomPage() {
         return;
       }
 
-      router.push(`/room/${data.data.id}`);
+      // Redirect to stream settings so the host can configure stream keys
+      router.push(`/room/${data.data.id}/settings`);
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
@@ -122,11 +133,58 @@ export default function NewRoomPage() {
                 onChange={(e) => updateField('tags', e.target.value)}
               />
 
+              {/* Ticket Pricing Section */}
+              <div className="border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Ticket size={16} className="text-gold" />
+                    <span className="text-sm font-medium text-white/70">Paid Event</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRequiresTicket(!requiresTicket)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      requiresTicket ? 'bg-gold' : 'bg-white/10'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                        requiresTicket ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <p className="text-xs text-white/40">
+                  Require viewers to purchase a ticket via Stripe Connect before accessing your stream.
+                </p>
+
+                {requiresTicket && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                    <div className="relative">
+                      <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                      <input
+                        type="number"
+                        min="1"
+                        max="10000"
+                        step="0.01"
+                        value={ticketPrice}
+                        onChange={(e) => setTicketPrice(e.target.value)}
+                        placeholder="0.00"
+                        className="input-field pl-8"
+                      />
+                    </div>
+                    <p className="text-xs text-white/30 mt-1.5">
+                      15% platform fee applies. Funds deposited directly to your Stripe Connect account.
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+
               {error && <p className="text-sm text-red-400">{error}</p>}
 
               <Button type="submit" loading={loading} className="w-full">
                 <Radio size={16} />
-                Start Streaming
+                {requiresTicket ? 'Create Paid Event' : 'Start Streaming'}
               </Button>
             </form>
           </CardContent>

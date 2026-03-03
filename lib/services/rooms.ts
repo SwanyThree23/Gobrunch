@@ -23,6 +23,8 @@ export function createRoom(hostId: string, payload: RoomCreatePayload): Room {
     tags: payload.tags || [],
     chatEnabled: payload.chatEnabled ?? true,
     recordingEnabled: payload.recordingEnabled ?? false,
+    ticketPrice: payload.ticketPrice,
+    requiresTicket: payload.requiresTicket ?? false,
     createdAt: now,
     updatedAt: now,
   };

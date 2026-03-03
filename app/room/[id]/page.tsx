@@ -19,7 +19,12 @@ import {
   Video,
   MessageSquare,
   Subtitles,
+  Ticket,
+  Lock,
+  Radio,
+  Loader2,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
@@ -69,6 +74,9 @@ export default function RoomPage({ params }: { params: { id: string } }) {
   const [toolkit, setToolkit] = useState<StreamingToolkit | null>(null);
   const [loading, setLoading] = useState(true);
   const [useVDO, setUseVDO] = useState(false);
+  const [ticketAccess, setTicketAccess] = useState(false);
+  const [purchasingTicket, setPurchasingTicket] = useState(false);
+  const [goingLive, setGoingLive] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { token, user } = useAuthStore();
@@ -104,6 +112,91 @@ export default function RoomPage({ params }: { params: { id: string } }) {
     }
   }, [params.id, token]);
 
+  // Check ticket access when room loads
+  useEffect(() => {
+    if (!room) return;
+    // Host always has access
+    if (room.hostId === user?.id) {
+      setTicketAccess(true);
+      return;
+    }
+    // Room doesn't require a ticket
+    if (!room.requiresTicket) {
+      setTicketAccess(true);
+      return;
+    }
+    // Check if user has purchased a ticket
+    if (token) {
+      fetch(`/api/rooms/${params.id}/ticket-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data?.hasTicket) {
+            setTicketAccess(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [room, user?.id, token, params.id]);
+
+  async function handlePurchaseTicket() {
+    if (!room || !token) return;
+    setPurchasingTicket(true);
+    try {
+      const res = await fetch('/api/stripe/ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roomId: room.id, amount: room.ticketPrice }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.url) {
+        window.location.href = data.data.url;
+      }
+    } catch {
+      // handle error silently
+    } finally {
+      setPurchasingTicket(false);
+    }
+  }
+
+  async function handleGoLive() {
+    if (!room || !token) return;
+    setGoingLive(true);
+    try {
+      const res = await fetch(`/api/rooms/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'live' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRoom(data.data);
+      }
+    } catch {
+      // handle error
+    } finally {
+      setGoingLive(false);
+    }
+  }
+
+  async function handleEndStream() {
+    if (!room || !token) return;
+    try {
+      const res = await fetch(`/api/rooms/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'ended' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRoom(data.data);
+      }
+    } catch {
+      // handle error
+    }
+  }
+
   useEffect(() => {
     fetchRoom();
     fetchToolkit();
@@ -132,6 +225,57 @@ export default function RoomPage({ params }: { params: { id: string } }) {
     );
   }
 
+  // Ticket gate: show purchase screen if viewer doesn't have access
+  if (room?.requiresTicket && !ticketAccess) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full mx-4">
+          <Card>
+            <div className="text-center p-6">
+              <div className="w-20 h-20 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-6">
+                <Lock className="text-gold" size={32} />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">{room.title}</h1>
+              <p className="text-white/50 mb-2">{room.description}</p>
+              {room.status === 'live' && (
+                <Badge variant="live" className="mb-4">LIVE NOW</Badge>
+              )}
+              <div className="bg-white/5 rounded-xl p-4 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Ticket size={18} className="text-gold" />
+                  <span className="text-lg font-bold text-gold">
+                    ${((room.ticketPrice || 0) / 100).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-white/40">One-time ticket purchase for access</p>
+              </div>
+              {user ? (
+                <Button
+                  variant="gold"
+                  className="w-full"
+                  onClick={handlePurchaseTicket}
+                  loading={purchasingTicket}
+                >
+                  <Ticket size={16} />
+                  Purchase Ticket
+                </Button>
+              ) : (
+                <Link href="/auth/login">
+                  <Button variant="primary" className="w-full">
+                    Sign in to Purchase
+                  </Button>
+                </Link>
+              )}
+              <p className="text-xs text-white/30 mt-4">
+                Powered by Stripe Connect. Funds go directly to the creator.
+              </p>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
       {/* Video Area */}
@@ -156,16 +300,45 @@ export default function RoomPage({ params }: { params: { id: string } }) {
                 <p className="text-white/40 mt-1">
                   {room?.status === 'live' ? 'Stream is live' : room?.status || 'Loading'}
                 </p>
-                {isHost && (
-                  <Button
-                    variant="gold"
-                    size="sm"
-                    className="mt-4"
-                    onClick={() => setUseVDO(true)}
-                  >
-                    <Video size={14} />
-                    Start VDO.Ninja Stream
-                  </Button>
+                {isHost && room?.status !== 'live' && (
+                  <div className="flex gap-2 justify-center mt-4">
+                    <Button
+                      variant="gold"
+                      size="sm"
+                      onClick={handleGoLive}
+                      loading={goingLive}
+                    >
+                      <Radio size={14} />
+                      Go Live
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUseVDO(true)}
+                    >
+                      <Video size={14} />
+                      VDO.Ninja
+                    </Button>
+                  </div>
+                )}
+                {isHost && room?.status === 'live' && (
+                  <div className="flex gap-2 justify-center mt-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUseVDO(true)}
+                    >
+                      <Video size={14} />
+                      Open VDO.Ninja
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={handleEndStream}
+                    >
+                      End Stream
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -232,6 +405,13 @@ export default function RoomPage({ params }: { params: { id: string } }) {
                   Tip
                 </Button>
               )}
+              {/* Ticket info for viewers */}
+              {room?.requiresTicket && room?.ticketPrice && !isHost && (
+                <Badge variant="default">
+                  <Ticket size={10} />
+                  ${(room.ticketPrice / 100).toFixed(2)} ticket
+                </Badge>
+              )}
               {/* Social Stream toggle */}
               {toolkit?.socialStream && (
                 <Button
@@ -256,9 +436,14 @@ export default function RoomPage({ params }: { params: { id: string } }) {
                 <Brain size={16} />
                 AI
               </Button>
-              <Button variant="ghost" size="sm">
-                <Settings size={16} />
-              </Button>
+              {/* Stream settings for host */}
+              {isHost && (
+                <Link href={`/room/${params.id}/settings`}>
+                  <Button variant="ghost" size="sm">
+                    <Settings size={16} />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
