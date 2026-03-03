@@ -15,6 +15,7 @@ import {
   User,
   DollarSign,
   Zap,
+  Plug,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +28,7 @@ const navLinks = [
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
   { href: '/creator/onboarding', label: 'Creator', icon: DollarSign },
   { href: '/creator/automations', label: 'Automations', icon: Zap },
+  { href: '/creator/integrations', label: 'Make.com', icon: Plug },
 ];
 
 export function Navbar() {

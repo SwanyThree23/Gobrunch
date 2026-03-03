@@ -438,6 +438,30 @@ export const automationApi = {
   },
 };
 
+// ---- Make.com Integration API ----
+export const makeApi = {
+  async getIntegration(): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/make');
+    return res.data!;
+  },
+
+  async generateApiKey(name?: string): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/make', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'generate_key', name: name || 'Make.com API Key' }),
+    });
+    return res.data!;
+  },
+
+  async revokeApiKey(): Promise<Record<string, unknown>> {
+    const res = await request<Record<string, unknown>>('/api/automation/make', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'revoke_key' }),
+    });
+    return res.data!;
+  },
+};
+
 /** Custom error class for API errors */
 export class ApiError extends Error {
   constructor(
