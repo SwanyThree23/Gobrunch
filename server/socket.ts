@@ -53,20 +53,12 @@ io.on('connection', socket => {
         io.to(roomId).emit('stateUpdate', state);
     });
 
-    socket.on('gameEnd', async ({ roomId, winnerId, loserId }) => {
-        // compute elo changes, pay out via stripe
-        const stored = await redisClient.get(`domino:${roomId}`);
-        if (!stored) return;
-        const state: GameState = JSON.parse(stored);
-        // simple elo update
-        const winnerRating = 1500;
-        const loserRating = 1500;
-        const { newA, newB } = calculateElo(winnerRating, loserRating);
-        // broadcast end
-        io.to(roomId).emit('gameOver', { winnerId, newRating: newA });
-        // cleanup
-        await redisClient.del(`domino:${roomId}`);
+    socket.on('chat', ({ roomId, message }) => {
+        io.to(roomId).emit('chat', message);
     });
+    // cleanup
+    await redisClient.del(`domino:${roomId}`);
+});
 });
 
 const PORT = process.env.SOCKET_PORT ? parseInt(process.env.SOCKET_PORT, 10) : 4000;
