@@ -23,7 +23,8 @@ module.exports = {
                 mono: ['"DM Mono"', 'monospace']
             },
             backgroundImage: {
-                'film-grain': "url('/images/film-grain.png')"
+                // fallback tiny transparent pixel to avoid missing file errors
+                'film-grain': "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=')"
             }
         }
     },
