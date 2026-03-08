@@ -12,6 +12,17 @@
 
   body {
     @apply bg-dark text-white antialiased;
+    position: relative;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: var(--tw-bg-image-fallback), url('/images/film-grain.png');
+    opacity: 0.032;
+    pointer-events: none;
+    mix-blend-mode: overlay;
   }
 
   /* Custom scrollbar */
