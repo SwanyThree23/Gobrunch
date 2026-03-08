@@ -36,7 +36,7 @@ export default function StreamPage() {
                     <GuestGrid guests={[]} />
                 </div>
                 <div className="col-span-1">
-                    <ChatPanel messages={[]} />
+                    <ChatPanel messages={[]} streamId={String(id)} />
                 </div>
             </div>
             <SwannyBubble streamId={String(id)} />

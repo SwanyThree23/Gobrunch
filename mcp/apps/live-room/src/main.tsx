@@ -89,7 +89,7 @@ function App() {
                             <GuestGrid guests={[]} />
                         </div>
                         <div className="col-span-1">
-                            <ChatPanel messages={[]} />
+                            <ChatPanel messages={[]} streamId="demo" />
                         </div>
                     </div>
                     <SwannyBubble streamId="demo" />
