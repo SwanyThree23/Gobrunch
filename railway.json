@@ -1,0 +1,18 @@
+{
+    "project": {
+        "name": "cy-live"
+    },
+    "services": [
+        {
+            "name": "mcp-server",
+            "env": "nodejs",
+            "path": "./mcp/index.ts"
+        },
+        {
+            "name": "socket-server",
+            "env": "nodejs",
+            "path": "./server/socket.ts"
+        }
+    ],
+    "plugins": []
+}

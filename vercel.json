@@ -1,21 +1,29 @@
 {
-  "version": 3,
-  "builds": [
-    { "src": "next.config.js", "use": "@vercel/next" }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
-    "CLAUDE_API_KEY": "@claude_api_key",
-    "N8N_WEBHOOK_SECRET": "@n8n_webhook_secret",
-    "REDIS_URL": "@redis_url",
-    "STREAM_KEY_ENCRYPTION_KEY": "@stream_key_encryption_key"
-  },
-  "regions": ["iad1"],
-  "rewrites": [
-    { "source": "/mcp/:match*", "destination": "/api/mcp/:match*" }
-  ]
+    "version": 3,
+    "builds": [
+        {
+            "src": "next.config.js",
+            "use": "@vercel/next"
+        }
+    ],
+    "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
+        "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+        "SUPABASE_ANON_KEY": "@supabase_anon_key",
+        "STRIPE_SECRET_KEY": "@stripe_secret_key",
+        "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
+        "CLAUDE_API_KEY": "@claude_api_key",
+        "N8N_WEBHOOK_SECRET": "@n8n_webhook_secret",
+        "REDIS_URL": "@redis_url",
+        "STREAM_KEY_ENCRYPTION_KEY": "@stream_key_encryption_key"
+    },
+    "regions": [
+        "iad1"
+    ],
+    "rewrites": [
+        {
+            "source": "/mcp/:match*",
+            "destination": "/api/mcp/:match*"
+        }
+    ]
 }
