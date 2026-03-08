@@ -4,6 +4,7 @@ import { HealthBar } from '../../components/live-room/HealthBar';
 import { GuestGrid } from '../../components/live-room/GuestGrid';
 import { ChatPanel } from '../../components/live-room/ChatPanel';
 import { SwannyBubble } from '../../components/live-room/SwannyBubble';
+import { TipButton } from '../../components/TipButton';
 
 export default function StreamPage() {
     const router = useRouter();

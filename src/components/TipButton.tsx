@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { calculateSplit } from '../lib/revenue';
+import { calculateSplit } from '../../lib/revenue';
 
 interface TipButtonProps {
     streamId: string;
