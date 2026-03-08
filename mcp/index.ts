@@ -66,15 +66,18 @@ const tools: Record<string, (params: any) => Promise<any>> = {
             creatorStripeAccountId: creator.stripe_account_id
         });
         const { creatorAmount, platformAmount } = calculateSplit(amount);
-        await supabaseAdmin.from('transactions').insert({
+        const { data: tx } = await supabaseAdmin.from('transactions').insert({
             id: intent.id,
             stream_id: streamId,
             viewer_id: viewerId,
             gross_amount: amount,
             creator_amount: creatorAmount,
             platform_amount: platformAmount
+        }).select('*').single();
+        // fire webhook for tip received
+        await sendN8nWebhook(process.env.N8N_WEBHOOK_URL || '', 'tip.received', {
+            transaction: tx
         });
-        // optionally trigger websocket or realtime via supabase
         return intent.client_secret;
     },
     async sendChatMessage(params: { streamId: string; senderId?: string; content: any }) {

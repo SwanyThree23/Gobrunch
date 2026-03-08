@@ -69,9 +69,7 @@ function App() {
 
             {state === 'countdown' && (
                 <div className="flex items-center justify-center h-full">
-                    <span className="text-9xl font-heading text-gold animate-pulse">
-                        {count}
-                    </span>
+                    <span className="text-9xl font-heading text-gold countdown">
                 </div>
             )}
 

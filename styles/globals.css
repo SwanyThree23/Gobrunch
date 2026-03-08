@@ -76,3 +76,21 @@
     text-wrap: balance;
   }
 }
+
+@keyframes radial-glow {
+  0% {
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.8), 0 0 16px rgba(212, 175, 55, 0.6);
+  }
+
+  50% {
+    text-shadow: 0 0 16px rgba(212, 175, 55, 1), 0 0 32px rgba(212, 175, 55, 0.8);
+  }
+
+  100% {
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.8), 0 0 16px rgba(212, 175, 55, 0.6);
+  }
+}
+
+.countdown {
+  animation: radial-glow 1s infinite;
+}
