@@ -27,6 +27,7 @@ const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
   { href: '/creator/onboarding', label: 'Creator', icon: DollarSign },
+  { href: '/creator/store', label: 'Store', icon: CreditCard },
   { href: '/creator/automations', label: 'Automations', icon: Zap },
   { href: '/creator/integrations', label: 'Make.com', icon: Plug },
 ];

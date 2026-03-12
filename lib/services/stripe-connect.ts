@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import type { ConnectAccountStatus, CreatorEarnings, EarningsTransaction } from '@/types';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-const PLATFORM_FEE_PERCENT = 15; // 15% platform fee on direct charges
+const PLATFORM_FEE_PERCENT = 10; // 10% platform fee (90/10 revenue split - creator keeps 90%)
 
 // Initialize Stripe with the official SDK for proper signature verification
 const stripe = STRIPE_SECRET_KEY

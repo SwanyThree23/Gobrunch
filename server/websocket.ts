@@ -285,6 +285,90 @@ io.on('connection', (socket: Socket) => {
     });
   });
 
+  // ---- Panel Events (20-Person Grid) ----
+  socket.on('panel:participant_join', (data: { roomId: string; role?: string }) => {
+    io.to(`room:${data.roomId}`).emit('panel:participant_join', {
+      userId,
+      role: data.role || 'guest',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('panel:participant_leave', (data: { roomId: string }) => {
+    io.to(`room:${data.roomId}`).emit('panel:participant_leave', {
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('panel:spotlight', (data: { roomId: string; targetUserId: string; action: 'spotlight' | 'unspotlight' }) => {
+    io.to(`room:${data.roomId}`).emit('panel:spotlight', {
+      targetUserId: data.targetUserId,
+      action: data.action,
+      triggeredBy: userId,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('panel:layout_change', (data: { roomId: string; layout: string }) => {
+    io.to(`room:${data.roomId}`).emit('panel:layout_change', {
+      layout: data.layout,
+      changedBy: userId,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // ---- Fanout Events ----
+  socket.on('fanout:status_update', (data: { roomId: string; targetId: string; status: string; platform: string }) => {
+    io.to(`room:${data.roomId}`).emit('fanout:status_update', {
+      ...data,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // ---- Paywall Events ----
+  socket.on('paywall:preview_expired', (data: { roomId: string; viewerId: string }) => {
+    // Notify the specific viewer their preview has expired
+    socket.emit('paywall:preview_expired', {
+      roomId: data.roomId,
+      viewerId: data.viewerId,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('paywall:payment_received', (data: { roomId: string; viewerId: string; amount: number }) => {
+    // Notify the host about the payment
+    io.to(`room:${data.roomId}`).emit('paywall:payment_received', {
+      viewerId: data.viewerId,
+      amount: data.amount,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // ---- Moderation Events ----
+  socket.on('moderation:flagged', (data: { roomId: string; messageId: string; action: string; reason: string }) => {
+    io.to(`room:${data.roomId}`).emit('moderation:flagged', {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // ---- Translation Events ----
+  socket.on('translation:message', (data: { roomId: string; messageId: string; translations: Record<string, string> }) => {
+    io.to(`room:${data.roomId}`).emit('translation:message', {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('transcription:segment', (data: { roomId: string; text: string; speaker?: string; startTime: number; endTime: number }) => {
+    io.to(`room:${data.roomId}`).emit('transcription:segment', {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // ---- Disconnect ----
   socket.on('disconnect', () => {
     console.log(`[WS] Disconnected: ${socket.id}`);

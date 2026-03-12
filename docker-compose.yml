@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # ---- Next.js Application (Thin Frontend + API) ----
   app:
     build:
       context: .
@@ -11,9 +12,103 @@ services:
       - .env.local
     environment:
       - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/auth/session']
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2'
+
+  # ---- WebSocket Server (Real-time Events) ----
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile.ws
+    ports:
+      - '3001:3001'
+    env_file:
+      - .env.local
+    environment:
+      - WS_PORT=3001
+      - NEXT_PUBLIC_APP_URL=http://app:3000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+
+  # ---- Redis (Watch Party Sync, Session State, Pub/Sub) ----
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- FFmpeg Fanout Worker Pool (RTMP Multi-Platform Broadcasting) ----
+  ffmpeg-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.ffmpeg
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKER_MAX_STREAMS=25
+      - NODE_ID=ffmpeg-worker-1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2  # Scale to handle more concurrent fanout streams
+      resources:
+        limits:
+          memory: 4G
+          cpus: '4'
+        reservations:
+          memory: 2G
+          cpus: '2'
+
+  # ---- n8n Workflow Automation (35 Production Workflows) ----
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - '5678:5678'
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_HOST=0.0.0.0
+      - WEBHOOK_URL=http://n8n:5678
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n-data:/home/node/.n8n
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+
+volumes:
+  redis-data:
+  n8n-data:

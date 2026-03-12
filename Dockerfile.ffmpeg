@@ -1,0 +1,20 @@
+# FFmpeg Fanout Worker - Handles RTMP multi-platform broadcasting
+# Each worker can handle up to 25 concurrent streams
+FROM node:20-alpine
+
+# Install FFmpeg for RTMP fanout
+RUN apk add --no-cache ffmpeg
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --production
+
+COPY server/ffmpeg-worker.ts ./server/
+COPY tsconfig.json ./
+
+# Health check: verify FFmpeg is available
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ffmpeg -version > /dev/null 2>&1 || exit 1
+
+CMD ["npx", "tsx", "server/ffmpeg-worker.ts"]

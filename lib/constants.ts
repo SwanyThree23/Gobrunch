@@ -40,6 +40,25 @@ export const WS_EVENTS = {
   WATCHPARTY_REACTION: 'watchparty:reaction',
   VIEWER_COUNT: 'viewer:count',
   ERROR: 'error',
+  // Module 1: Panel Events
+  PANEL_PARTICIPANT_JOIN: 'panel:participant_join',
+  PANEL_PARTICIPANT_LEAVE: 'panel:participant_leave',
+  PANEL_SPOTLIGHT: 'panel:spotlight',
+  PANEL_LAYOUT_CHANGE: 'panel:layout_change',
+  // Module 2: Fanout Events
+  FANOUT_STATUS_UPDATE: 'fanout:status_update',
+  FANOUT_TARGET_LIVE: 'fanout:target_live',
+  FANOUT_TARGET_ERROR: 'fanout:target_error',
+  // Module 3: Paywall Events
+  PAYWALL_PREVIEW_START: 'paywall:preview_start',
+  PAYWALL_PREVIEW_EXPIRED: 'paywall:preview_expired',
+  PAYWALL_PAYMENT_RECEIVED: 'paywall:payment_received',
+  // Module 4: Moderation Events
+  MODERATION_FLAGGED: 'moderation:flagged',
+  MODERATION_ACTION: 'moderation:action',
+  // Module 5: Translation Events
+  TRANSLATION_MESSAGE: 'translation:message',
+  TRANSCRIPTION_SEGMENT: 'transcription:segment',
 } as const;
 
 // ---- Pricing Plans ----
@@ -121,6 +140,51 @@ export const PRICING_PLANS: PricingPlan[] = [
 // ---- Chat Constants ----
 export const MAX_CHAT_MESSAGE_LENGTH = 2000;
 export const CHAT_HISTORY_LIMIT = 200;
+
+// ---- Monetization Constants (90/10 Revenue Split) ----
+export const CREATOR_REVENUE_PERCENT = 90; // Creator keeps 90%
+export const PLATFORM_FEE_PERCENT = 10; // Platform takes 10%
+export const GOLDEN_PAYWALL_PREVIEW_SECONDS = 120; // 2-minute free preview
+export const PAYWALL_PRICE_OPTIONS = [
+  { amount: 99, label: '$0.99', duration: 'single-view' as const },
+  { amount: 199, label: '$1.99', duration: '24-hours' as const },
+  { amount: 299, label: '$2.99', duration: '24-hours' as const },
+  { amount: 499, label: '$4.99', duration: 'lifetime' as const },
+];
+
+// ---- Creator Subscription Tiers ----
+export const CREATOR_SUB_TIERS = {
+  bronze: { price: 100, label: 'Bronze', color: '#CD7F32' },
+  silver: { price: 500, label: 'Silver', color: '#C0C0C0' },
+  gold: { price: 1500, label: 'Gold', color: '#D4AF37' },
+} as const;
+
+// ---- Panel / Streaming Constants ----
+export const MAX_PANEL_PARTICIPANTS = 20;
+export const MAX_FANOUT_TARGETS_PER_GUEST = 5;
+export const SPOTLIGHT_SIZE_PERCENT = 70;
+
+// ---- P2P Payment Providers ----
+export const P2P_PROVIDERS = [
+  { id: 'paypal' as const, label: 'PayPal', icon: '💰', color: '#0070BA' },
+  { id: 'cashapp' as const, label: 'Cash App', icon: '💵', color: '#00D632' },
+  { id: 'venmo' as const, label: 'Venmo', icon: '💸', color: '#3D95CE' },
+  { id: 'zelle' as const, label: 'Zelle', icon: '🏦', color: '#6D1ED4' },
+  { id: 'chime' as const, label: 'Chime', icon: '🏧', color: '#1EC677' },
+] as const;
+
+// ---- Fanout Platforms ----
+export const FANOUT_PLATFORMS = [
+  { id: 'youtube' as const, label: 'YouTube', color: '#FF0000' },
+  { id: 'twitch' as const, label: 'Twitch', color: '#9146FF' },
+  { id: 'tiktok' as const, label: 'TikTok', color: '#000000' },
+  { id: 'facebook' as const, label: 'Facebook', color: '#1877F2' },
+  { id: 'kick' as const, label: 'Kick', color: '#53FC18' },
+  { id: 'instagram' as const, label: 'Instagram', color: '#E4405F' },
+  { id: 'x' as const, label: 'X (Twitter)', color: '#000000' },
+  { id: 'linkedin' as const, label: 'LinkedIn', color: '#0A66C2' },
+  { id: 'custom' as const, label: 'Custom RTMP', color: '#6B7280' },
+] as const;
 
 // ---- AI System Prompts ----
 export const AI_SYSTEM_PROMPT = `You are SeeWhy AI, an intelligent assistant integrated into the SeeWhy LIVE streaming platform. You help viewers and hosts with:

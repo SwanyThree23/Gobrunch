@@ -24,11 +24,19 @@ model User {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  rooms             Room[]
-  watchPartiesHost  WatchParty[]       @relation("WatchPartyHost")
-  participants      WatchPartyParticipant[]
-  chatMessages      ChatMessage[]
-  transactions      Transaction[]
+  rooms                  Room[]
+  watchPartiesHost       WatchParty[]       @relation("WatchPartyHost")
+  participants           WatchPartyParticipant[]
+  chatMessages           ChatMessage[]
+  transactions           Transaction[]
+  panelParticipations    StreamPanelParticipant[]
+  fanoutTargets          FanoutTarget[]     @relation("FanoutTargetUser")
+  paywallSessions        PaywallSession[]   @relation("PaywallViewer")
+  p2pPaymentLinks        P2PPaymentLink[]   @relation("P2PCreator")
+  creatorSubPlans        CreatorSubscriptionPlan[] @relation("CreatorSubPlans")
+  creatorSubscriptions   CreatorSubscription[]    @relation("CreatorSubscriber")
+  creatorProducts        CreatorProduct[]   @relation("CreatorProducts")
+  vaultSecrets           VaultSecret[]      @relation("VaultSecrets")
 
   @@map("users")
 }
@@ -56,6 +64,7 @@ model Room {
 
   watchParties     WatchParty[]
   chatMessages     ChatMessage[]
+  streamPanel      StreamPanel?
 
   @@index([hostId])
   @@index([status])
@@ -124,9 +133,9 @@ model Transaction {
   stripeEventId    String   @unique // For idempotency
   userId           String
   user             User     @relation(fields: [userId], references: [id])
-  type             String   // tip | subscription | ticket | payout | refund
+  type             String   // tip | subscription | ticket | payout | refund | paywall | product
   amount           Int      // Amount in cents
-  fee              Int      @default(0) // Platform fee in cents
+  fee              Int      @default(0) // Platform fee in cents (10% for 90/10 split)
   net              Int      // Net amount in cents
   currency         String   @default("usd")
   status           String   @default("pending") // pending | completed | failed | refunded
@@ -139,4 +148,276 @@ model Transaction {
   @@index([stripeEventId])
   @@index([type])
   @@map("transactions")
+}
+
+// ============================================================
+// MODULE 1: Advanced Streaming - 20-Person Panel Grid
+// ============================================================
+
+model StreamPanel {
+  id               String   @id @default(uuid())
+  roomId           String   @unique
+  room             Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  layout           String   @default("grid") // grid | spotlight | vertical-cinema | sidebar
+  maxParticipants  Int      @default(20)
+  spotlightUserId  String?
+  sfuNodeId        String?  // Mediasoup SFU node assignment
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  participants     StreamPanelParticipant[]
+
+  @@map("stream_panels")
+}
+
+model StreamPanelParticipant {
+  id             String      @id @default(uuid())
+  panelId        String
+  panel          StreamPanel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  streamId       String      @default("")
+  role           String      @default("guest") // host | co-host | guest | viewer
+  audioEnabled   Boolean     @default(true)
+  videoEnabled   Boolean     @default(true)
+  screenSharing  Boolean     @default(false)
+  virtualCamera  Boolean     @default(false)
+  spotlighted    Boolean     @default(false)
+  raisedHand     Boolean     @default(false)
+  joinedAt       DateTime    @default(now())
+
+  @@unique([panelId, userId])
+  @@index([panelId])
+  @@map("stream_panel_participants")
+}
+
+// ============================================================
+// MODULE 2: Guest Destinations - RTMP Fanout Engine
+// ============================================================
+
+model FanoutTarget {
+  id              String   @id @default(uuid())
+  roomId          String
+  userId          String
+  user            User     @relation("FanoutTargetUser", fields: [userId], references: [id])
+  platform        String   // youtube | twitch | tiktok | facebook | kick | instagram | x | linkedin | custom
+  displayName     String
+  rtmpUrl         String
+  streamKey       String   // encrypted via Vault Pro
+  status          String   @default("idle") // idle | validating | connected | live | error | disconnected
+  ffmpegWorkerId  String?
+  bitrate         Int      @default(4500)
+  resolution      String   @default("1920x1080")
+  lastValidatedAt DateTime?
+  validationError String?
+  startedAt       DateTime?
+  viewerCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([roomId])
+  @@index([userId])
+  @@map("fanout_targets")
+}
+
+// ============================================================
+// MODULE 3: Monetization - Golden Paywall, P2P, Marketplace
+// ============================================================
+
+model PaywallSession {
+  id                String   @id @default(uuid())
+  viewerId          String
+  viewer            User     @relation("PaywallViewer", fields: [viewerId], references: [id])
+  roomId            String
+  status            String   @default("preview") // preview | active | expired | paid | bypassed
+  previewStartedAt  DateTime @default(now())
+  previewExpiresAt  DateTime
+  paidAt            DateTime?
+  amountPaid        Int?     // in cents
+  paymentMethod     String?  // stripe | p2p
+  createdAt         DateTime @default(now())
+
+  @@unique([viewerId, roomId])
+  @@index([roomId])
+  @@map("paywall_sessions")
+}
+
+model P2PPaymentLink {
+  id            String   @id @default(uuid())
+  creatorId     String
+  creator       User     @relation("P2PCreator", fields: [creatorId], references: [id])
+  provider      String   // paypal | cashapp | venmo | zelle | chime
+  handle        String   // username, email, or phone
+  displayLabel  String
+  enabled       Boolean  @default(true)
+  qrCodeUrl     String?
+  createdAt     DateTime @default(now())
+
+  @@index([creatorId])
+  @@map("p2p_payment_links")
+}
+
+model CreatorSubscriptionPlan {
+  id              String   @id @default(uuid())
+  creatorId       String
+  creator         User     @relation("CreatorSubPlans", fields: [creatorId], references: [id])
+  tier            String   // bronze | silver | gold
+  name            String
+  priceMonthly    Int      // in cents: Bronze 100, Silver 500, Gold 1500
+  features        String   @default("[]") // JSON array
+  stripePriceId   String   @default("")
+  subscriberCount Int      @default(0)
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  subscribers     CreatorSubscription[]
+
+  @@index([creatorId])
+  @@map("creator_subscription_plans")
+}
+
+model CreatorSubscription {
+  id        String   @id @default(uuid())
+  planId    String
+  plan      CreatorSubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("CreatorSubscriber", fields: [userId], references: [id])
+  status    String   @default("active") // active | cancelled | expired
+  startedAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@unique([planId, userId])
+  @@index([userId])
+  @@map("creator_subscriptions")
+}
+
+model CreatorProduct {
+  id            String   @id @default(uuid())
+  creatorId     String
+  creator       User     @relation("CreatorProducts", fields: [creatorId], references: [id])
+  name          String
+  description   String   @default("")
+  type          String   // digital | physical | service
+  priceInCents  Int
+  imageUrl      String?
+  downloadUrl   String?  // for digital products
+  inventory     Int?     // for physical products, null = unlimited
+  stripePriceId String   @default("")
+  soldCount     Int      @default(0)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([creatorId])
+  @@map("creator_products")
+}
+
+// ============================================================
+// MODULE 4: SwanyThree AI Trio - Vault Pro & Moderation
+// ============================================================
+
+model VaultSecret {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation("VaultSecrets", fields: [userId], references: [id])
+  name              String
+  type              String   // api_key | stream_key | webhook_secret | oauth_token | encryption_key
+  encryptedValue    String   // AES-256-GCM encrypted
+  iv                String   // initialization vector
+  authTag           String   // GCM authentication tag
+  rotationSchedule  String?  // daily | weekly | monthly | manual
+  lastRotatedAt     DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  auditLogs         VaultAuditLog[]
+
+  @@index([userId])
+  @@map("vault_secrets")
+}
+
+model VaultAuditLog {
+  id        String   @id @default(uuid())
+  secretId  String
+  secret    VaultSecret @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  userId    String
+  action    String   // created | accessed | rotated | deleted | expired
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+
+  @@index([secretId])
+  @@index([userId])
+  @@map("vault_audit_logs")
+}
+
+model ModerationLog {
+  id          String   @id @default(uuid())
+  roomId      String
+  messageId   String
+  content     String
+  flagged     Boolean
+  categories  String   @default("[]") // JSON array
+  confidence  Float
+  action      String   // allow | warn | mute | timeout | ban
+  reason      String?
+  reviewedAt  DateTime @default(now())
+
+  @@index([roomId])
+  @@map("moderation_logs")
+}
+
+model TranscriptionSegment {
+  id         String   @id @default(uuid())
+  roomId     String
+  startTime  Float
+  endTime    Float
+  text       String
+  speaker    String?
+  language   String   @default("en")
+  confidence Float    @default(0.9)
+  createdAt  DateTime @default(now())
+
+  @@index([roomId])
+  @@map("transcription_segments")
+}
+
+model HighlightClip {
+  id           String   @id @default(uuid())
+  roomId       String
+  title        String
+  startTime    Float
+  endTime      Float
+  duration     Float
+  thumbnailUrl String?
+  clipUrl      String?
+  score        Int      @default(0) // AI importance score 0-100
+  tags         String   @default("[]") // JSON array
+  generatedBy  String   @default("ai") // ai | manual
+  createdAt    DateTime @default(now())
+
+  @@index([roomId])
+  @@map("highlight_clips")
+}
+
+// ============================================================
+// MODULE 5: Communication - MCP Gateway
+// ============================================================
+
+model MCPServerConfig {
+  id              String   @id @default(uuid())
+  name            String
+  description     String   @default("")
+  endpoint        String
+  status          String   @default("online") // online | offline | degraded | maintenance
+  capabilities    String   @default("[]") // JSON array
+  version         String   @default("1.0.0")
+  healthCheckUrl  String
+  lastHealthCheck DateTime?
+  uptime          Float    @default(100)
+  requestCount    Int      @default(0)
+  avgResponseMs   Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  @@map("mcp_servers")
 }
