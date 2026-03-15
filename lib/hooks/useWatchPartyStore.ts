@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { WatchParty, WatchPartySyncEvent, ChatMessage } from '@/types';
+import type { WatchParty, WatchPartySyncEvent, ChatMessage, OpenRouterMessage, AIModel } from '@/types';
+
+export interface AIMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
 
 interface WatchPartyState {
   party: WatchParty | null;
@@ -7,6 +14,9 @@ interface WatchPartyState {
   isReady: boolean;
   chatMessages: ChatMessage[];
   syncEvents: WatchPartySyncEvent[];
+  aiMessages: AIMessage[];
+  aiLoading: boolean;
+  aiModel: AIModel;
 
   setParty: (party: WatchParty | null) => void;
   setIsHost: (isHost: boolean) => void;
@@ -15,6 +25,10 @@ interface WatchPartyState {
   addSyncEvent: (event: WatchPartySyncEvent) => void;
   clearSyncEvents: () => void;
   updatePartyState: (updates: Partial<WatchParty>) => void;
+  addAIMessage: (message: AIMessage) => void;
+  setAILoading: (loading: boolean) => void;
+  setAIModel: (model: AIModel) => void;
+  clearAIMessages: () => void;
 }
 
 export const useWatchPartyStore = create<WatchPartyState>((set) => ({
@@ -23,6 +37,9 @@ export const useWatchPartyStore = create<WatchPartyState>((set) => ({
   isReady: false,
   chatMessages: [],
   syncEvents: [],
+  aiMessages: [],
+  aiLoading: false,
+  aiModel: 'openai/gpt-4o',
 
   setParty: (party) => set({ party }),
 
@@ -46,4 +63,15 @@ export const useWatchPartyStore = create<WatchPartyState>((set) => ({
     set((state) => ({
       party: state.party ? { ...state.party, ...updates } : null,
     })),
+
+  addAIMessage: (message) =>
+    set((state) => ({
+      aiMessages: [...state.aiMessages.slice(-99), message],
+    })),
+
+  setAILoading: (aiLoading) => set({ aiLoading }),
+
+  setAIModel: (aiModel) => set({ aiModel }),
+
+  clearAIMessages: () => set({ aiMessages: [] }),
 }));

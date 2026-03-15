@@ -18,8 +18,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { AIChatPanel } from '@/components/watchparty/AIChatPanel';
 import { useWatchPartyStore } from '@/lib/hooks/useWatchPartyStore';
 import { useAuthStore } from '@/lib/hooks/useAuthStore';
 import { useSocket } from '@/lib/hooks/useSocket';
@@ -242,22 +242,10 @@ export default function WatchPartyPage({ params }: { params: { id: string } }) {
 
         {/* AI Panel */}
         {showAI && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="border-b border-white/5"
-          >
-            <Card className="m-3 !p-3 bg-gradient-to-br from-purple-500/10 to-transparent">
-              <div className="flex items-center gap-2 mb-2">
-                <Brain size={14} className="text-gold" />
-                <span className="text-xs font-semibold text-gold">AI Assistant</span>
-              </div>
-              <p className="text-xs text-white/50">
-                I can help with trivia about the movie, explain scenes, or
-                suggest discussion topics for the group!
-              </p>
-            </Card>
-          </motion.div>
+          <AIChatPanel
+            watchPartyId={params.id}
+            videoTitle={activeParty?.title}
+          />
         )}
 
         {/* Chat */}

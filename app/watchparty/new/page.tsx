@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { PartyPopper, ArrowLeft } from 'lucide-react';
+import { PartyPopper, ArrowLeft, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -20,9 +20,10 @@ export default function NewWatchPartyPage() {
     videoUrl: '',
     videoSource: 'youtube' as const,
     maxParticipants: '10',
+    aiAssistantEnabled: false,
   });
 
-  function updateField(field: string, value: string) {
+  function updateField(field: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -43,6 +44,7 @@ export default function NewWatchPartyPage() {
           videoUrl: form.videoUrl,
           videoSource: form.videoSource,
           maxParticipants: parseInt(form.maxParticipants) || 10,
+          aiAssistantEnabled: form.aiAssistantEnabled,
         }),
       });
 
@@ -118,6 +120,23 @@ export default function NewWatchPartyPage() {
                 value={form.maxParticipants}
                 onChange={(e) => updateField('maxParticipants', e.target.value)}
               />
+
+              <label className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:bg-white/[0.07] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={form.aiAssistantEnabled}
+                  onChange={(e) => updateField('aiAssistantEnabled', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-white/10 rounded-full peer-checked:bg-purple-500 relative transition-colors">
+                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${form.aiAssistantEnabled ? 'translate-x-4' : ''}`} />
+                </div>
+                <Brain size={16} className="text-purple-400" />
+                <div>
+                  <span className="text-sm font-medium">AI Assistant</span>
+                  <p className="text-xs text-white/40">Enable AI-powered discussion helper (Pro+)</p>
+                </div>
+              </label>
 
               {error && <p className="text-sm text-red-400">{error}</p>}
 
